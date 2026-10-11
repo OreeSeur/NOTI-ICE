@@ -9,7 +9,7 @@ namespace PortalNoticiasAPI.DTOs
         public string Nombre { get; set; } = string.Empty;
         public int IdRol { get; set; }
         public string? RolNombre { get; set; }
-        public int NoIdentificacion { get; set; }
+        public string NoIdentificacion { get; set; } = string.Empty;
         public string Correo { get; set; } = string.Empty;
         public bool Activo { get; set; }
     }
@@ -18,7 +18,7 @@ namespace PortalNoticiasAPI.DTOs
     {
         public string Nombre { get; set; } = string.Empty;
         public int IdRol { get; set; }
-        public int NoIdentificacion { get; set; }
+        public string NoIdentificacion { get; set; } = string.Empty;
         public string Correo { get; set; } = string.Empty;
         public string Contrasena { get; set; } = string.Empty;
     }

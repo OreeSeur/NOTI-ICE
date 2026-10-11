@@ -40,7 +40,7 @@ export const autenticarUsuario = async (correo, contrasena) => {
 export const registrarUsuario = async ({ nombre, boleta, correo, password, carrera, semestre }) => {
   const respuesta = await post(ENDPOINTS.auth.register, {
     nombre,
-    noIdentificacion: Number(boleta),
+    noIdentificacion: String(boleta ?? "").trim(),
     correo,
     contrasena: password,
     carrera,

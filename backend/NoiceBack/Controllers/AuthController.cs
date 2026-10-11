@@ -88,11 +88,15 @@ namespace PortalNoticiasAPI.Controllers
             if (errorAcademico != null)
                 return BadRequest(new { mensaje = errorAcademico });
 
+            var identificacion = dto.NoIdentificacion?.Trim();
+            if (string.IsNullOrWhiteSpace(identificacion) || identificacion.Length > 30)
+                return BadRequest(new { mensaje = "El número de identificación debe contener entre 1 y 30 caracteres" });
+
             var correoExiste = await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo);
             if (correoExiste)
                 return BadRequest(new { mensaje = "Ya existe un usuario con ese correo" });
 
-            var boletaExiste = await _context.Usuarios.AnyAsync(u => u.NoIdentificacion == dto.NoIdentificacion);
+            var boletaExiste = await _context.Usuarios.AnyAsync(u => u.NoIdentificacion == identificacion);
             if (boletaExiste)
                 return BadRequest(new { mensaje = "Ya existe un usuario con ese número de identificación" });
 
@@ -104,7 +108,7 @@ namespace PortalNoticiasAPI.Controllers
             {
                 Nombre = dto.Nombre,
                 IdRol = rolAlumno.IdRol,
-                NoIdentificacion = dto.NoIdentificacion,
+                NoIdentificacion = identificacion!,
                 Correo = dto.Correo,
                 Contrasena = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena),
                 Carrera = dto.Carrera.Trim(),

@@ -43,7 +43,7 @@ namespace PortalNoticiasAPI.Data
                 e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
                 e.Property(x => x.Nombre).HasColumnName("Nombre").IsRequired();
                 e.Property(x => x.IdRol).HasColumnName("idRol");
-                e.Property(x => x.NoIdentificacion).HasColumnName("NoIdentificacion");
+                e.Property(x => x.NoIdentificacion).HasColumnName("NoIdentificacion").HasMaxLength(30).IsRequired();
                 e.Property(x => x.Correo).HasColumnName("Correo").IsRequired();
                 e.Property(x => x.Contrasena).HasColumnName("Contrasena").IsRequired();
                 e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");

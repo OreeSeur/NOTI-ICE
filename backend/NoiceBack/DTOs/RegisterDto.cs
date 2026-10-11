@@ -5,7 +5,7 @@ namespace PortalNoticiasAPI.DTOs
     public class RegisterDto
     {
         public string Nombre { get; set; } = string.Empty;
-        public int NoIdentificacion { get; set; } // boleta
+        public string NoIdentificacion { get; set; } = string.Empty; // conserva ceros iniciales
         public string Correo { get; set; } = string.Empty;
         public string Contrasena { get; set; } = string.Empty;
         public string Carrera { get; set; } = string.Empty;

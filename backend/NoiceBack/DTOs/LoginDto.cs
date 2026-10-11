@@ -14,7 +14,7 @@ namespace PortalNoticiasAPI.DTOs
         public string Correo { get; set; } = string.Empty;
         public int IdRol { get; set; }
         public string RolNombre { get; set; } = string.Empty;
-        public int NoIdentificacion { get; set; } // boleta
+        public string NoIdentificacion { get; set; } = string.Empty; // boleta o identificador
         public string? Carrera { get; set; }
         public int? Semestre { get; set; }
     }

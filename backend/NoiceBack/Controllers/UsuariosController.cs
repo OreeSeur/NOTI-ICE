@@ -62,6 +62,14 @@ namespace PortalNoticiasAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<UsuarioDto>> CrearUsuario(UsuarioCreateDto dto)
         {
+            var identificacion = dto.NoIdentificacion?.Trim();
+            if (string.IsNullOrWhiteSpace(identificacion) || identificacion.Length > 30)
+                return BadRequest(new { mensaje = "El número de identificación debe contener entre 1 y 30 caracteres" });
+
+            var identificacionExiste = await _context.Usuarios.AnyAsync(u => u.NoIdentificacion == identificacion);
+            if (identificacionExiste)
+                return BadRequest(new { mensaje = "Ya existe un usuario con ese número de identificación" });
+
             var correoExiste = await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo);
             if (correoExiste)
                 return BadRequest(new { mensaje = "Ya existe un usuario con ese correo" });
@@ -74,7 +82,7 @@ namespace PortalNoticiasAPI.Controllers
             {
                 Nombre = dto.Nombre,
                 IdRol = dto.IdRol,
-                NoIdentificacion = dto.NoIdentificacion,
+                NoIdentificacion = identificacion!,
                 Correo = dto.Correo,
                 Contrasena = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena),
                 FechaAlta = DateTime.Now,
