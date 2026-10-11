@@ -28,8 +28,24 @@ export const DocumentosProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    cargarDocumentos();
-  }, [cargarDocumentos]);
+    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    let activo = true;
+
+    obtenerDocumentos()
+      .then((datos) => {
+        if (activo) setDocumentos(datos);
+      })
+      .catch((err) => {
+        if (activo) setError(err.message || "No se pudieron cargar los documentos");
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const agregarDocumento = useCallback(async (nuevoDocumento) => {
     const creado = await crearDocumentoApi(nuevoDocumento);

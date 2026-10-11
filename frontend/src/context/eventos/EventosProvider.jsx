@@ -13,22 +13,25 @@ export const EventosProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const cargarEventos = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await obtenerEventos();
-      setEventos(data);
-    } catch (err) {
-      setError(err.message || "No se pudieron cargar los eventos");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    cargarEventos();
-  }, [cargarEventos]);
+    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    let activo = true;
+
+    obtenerEventos()
+      .then((datos) => {
+        if (activo) setEventos(datos);
+      })
+      .catch((err) => {
+        if (activo) setError(err.message || "No se pudieron cargar los eventos");
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const agregarEvento = useCallback(async (nuevoEvento, idUsuario) => {
     const creado = await crearEventoApi(nuevoEvento, idUsuario);

@@ -27,8 +27,24 @@ export const NoticiasProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    cargarNoticias();
-  }, [cargarNoticias]);
+    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    let activo = true;
+
+    obtenerNoticias()
+      .then((datos) => {
+        if (activo) setNoticias(datos);
+      })
+      .catch((err) => {
+        if (activo) setError(err.message || "No se pudieron cargar las noticias");
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // idUsuario: quién publica la noticia (normalmente el admin logueado)
   const agregarNoticia = useCallback(async (nuevoNoticia, idUsuario) => {
