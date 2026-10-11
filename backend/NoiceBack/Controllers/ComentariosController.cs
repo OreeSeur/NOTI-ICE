@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -44,15 +45,19 @@ namespace PortalNoticiasAPI.Controllers
             if (!noticiaExiste)
                 return BadRequest(new { mensaje = "La noticia especificada no existe o está inactiva" });
 
-            var usuarioExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == dto.IdUsuario && u.Activo);
+            // La identidad del autor se obtiene del JWT, nunca del IdUsuario enviado por el cliente.
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idUsuario))
+                return Unauthorized(new { mensaje = "No se pudo identificar al usuario autenticado" });
+
+            var usuarioExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == idUsuario && u.Activo);
             if (!usuarioExiste)
-                return BadRequest(new { mensaje = "El usuario especificado no existe o está inactivo" });
+                return Unauthorized(new { mensaje = "El usuario autenticado no existe o está inactivo" });
 
             var comentario = new Comentario
             {
                 ComentarioTexto = dto.ComentarioTexto,
                 FechaPublicacion = DateTime.Now,
-                IdUsuario = dto.IdUsuario,
+                IdUsuario = idUsuario,
                 FechaAlta = DateTime.Now,
                 Activo = true
             };

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -86,9 +87,13 @@ namespace PortalNoticiasAPI.Controllers
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<NoticiaDto>> CrearNoticia(NoticiaCreateDto dto)
         {
-            var usuarioExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == dto.IdUsuario && u.Activo);
+            // La autoria se obtiene del JWT, no de un IdUsuario manipulable por el cliente.
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idUsuario))
+                return Unauthorized(new { mensaje = "No se pudo identificar al usuario autenticado" });
+
+            var usuarioExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == idUsuario && u.Activo);
             if (!usuarioExiste)
-                return BadRequest(new { mensaje = "El usuario especificado no existe o está inactivo" });
+                return Unauthorized(new { mensaje = "El usuario autenticado no existe o está inactivo" });
 
             if (dto.IdCategoria.HasValue)
             {
@@ -103,7 +108,7 @@ namespace PortalNoticiasAPI.Controllers
             {
                 Titulo = dto.Titulo,
                 Contenido = dto.Contenido,
-                IdUsuario = dto.IdUsuario,
+                IdUsuario = idUsuario,
                 IdCategoria = dto.IdCategoria,
                 FechaPublicacion = dto.FechaPublicacion,
                 Prioridad = string.IsNullOrWhiteSpace(audiencia.Prioridad) ? "normal" : audiencia.Prioridad,
