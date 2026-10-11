@@ -1,0 +1,47 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-ipn-guinda: #6f1d46;
+  --color-ipn-guinda-logo: #750946;
+  --color-ipn-gris: #636569;
+  --color-ipn-negro: #000000;
+  --color-ipn-blanco: #ffffff;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --ipn-guinda: #6f1d46;
+  --ipn-guinda-logo: #750946;
+  --ipn-gris: #636569;
+  --ipn-negro: #000000;
+  --ipn-blanco: #ffffff;
+}
+
+@layer base {
+  html {
+    font-family: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body {
+    font-family: inherit;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: rgb(111 29 70 / 18%);
+    color: var(--ipn-guinda);
+  }
+}
+
+/* Oculta la barra de scroll visual sin bloquear el desplazamiento. */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
