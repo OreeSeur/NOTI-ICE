@@ -65,7 +65,16 @@ namespace PortalNoticiasAPI.Controllers
             var academia = await _context.Academias.FindAsync(id);
             if (academia == null || !academia.Activo)
                 return NotFound(new { mensaje = $"No se encontró la academia con id {id}" });
+            var tieneMateriasActivas = await _context.Materias
+                .AnyAsync(m => m.IdAcademia == id && m.Activo);
 
+            if (tieneMateriasActivas)
+            {
+                return Conflict(new
+                {
+                    mensaje = "No se puede desactivar la academia porque tiene materias activas asociadas."
+                });
+            }
             academia.Activo = false;
             await _context.SaveChangesAsync();
             return NoContent();

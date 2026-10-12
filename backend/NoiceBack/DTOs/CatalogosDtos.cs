@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace PortalNoticiasAPI.DTOs
 {
@@ -41,7 +42,13 @@ namespace PortalNoticiasAPI.DTOs
 
     public class AcademiaCreateUpdateDto
     {
+        [Required(ErrorMessage = "El nombre de la academia es obligatorio.")]
+        [StringLength(150,
+            ErrorMessage = "El nombre de la academia no puede superar los 150 caracteres.")]
         public string Nombre { get; set; } = string.Empty;
+
+        [StringLength(255,
+            ErrorMessage = "La descripción no puede superar los 255 caracteres.")]
         public string? Descripcion { get; set; }
     }
 
