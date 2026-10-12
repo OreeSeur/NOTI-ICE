@@ -84,7 +84,16 @@ namespace PortalNoticiasAPI.Controllers
             var materia = await _context.Materias.FindAsync(id);
             if (materia == null || !materia.Activo)
                 return NotFound(new { mensaje = $"No se encontró la materia con id {id}" });
+            var academiaActiva = await _context.Academias
+                .AnyAsync(a => a.IdAcademia == dto.IdAcademia && a.Activo);
 
+            if (!academiaActiva)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "La academia especificada no existe o está inactiva"
+                });
+            }
             materia.IdAcademia = dto.IdAcademia;
             materia.MateriaNombre = dto.MateriaNombre;
             materia.Descripcion = dto.Descripcion;
@@ -94,12 +103,22 @@ namespace PortalNoticiasAPI.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Administrador")]
+        
         public async Task<IActionResult> EliminarMateria(int id)
         {
             var materia = await _context.Materias.FindAsync(id);
             if (materia == null || !materia.Activo)
                 return NotFound(new { mensaje = $"No se encontró la materia con id {id}" });
+            var tieneGruposActivos = await _context.Grupos
+                .AnyAsync(g => g.IdMateria == id && g.Activo);
 
+            if (tieneGruposActivos)
+            {
+                return Conflict(new
+                {
+                    mensaje = "No se puede desactivar la materia porque tiene grupos activos asociados."
+                });
+            }
             materia.Activo = false;
             await _context.SaveChangesAsync();
             return NoContent();
