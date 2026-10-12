@@ -116,9 +116,11 @@ namespace PortalNoticiasAPI.Controllers
             if (!materiaExiste)
                 return BadRequest(new { mensaje = "La materia especificada no existe o está inactiva" });
 
-            var profesorExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == dto.IdUsuario && u.Activo);
+            var profesorExiste = await _context.Usuarios.AnyAsync(u =>
+                u.IdUsuario == dto.IdUsuario && u.Activo &&
+                u.Rol != null && u.Rol.Activo && u.Rol.Nombre == "Docente");
             if (!profesorExiste)
-                return BadRequest(new { mensaje = "El profesor especificado no existe o está inactivo" });
+                return BadRequest(new { mensaje = "El usuario seleccionado debe ser un docente activo" });
 
             var tipoExiste = await _context.GruposTipos.AnyAsync(t => t.IdGrupoTipo == dto.IdGrupoTipo && t.Activo);
             if (!tipoExiste)
@@ -151,6 +153,22 @@ namespace PortalNoticiasAPI.Controllers
             if (grupo == null || !grupo.Activo)
                 return NotFound(new { mensaje = $"No se encontró el grupo con id {id}" });
 
+            var materiaExiste = await _context.Materias.AnyAsync(m =>
+                m.IdMateria == dto.IdMateria && m.Activo);
+            if (!materiaExiste)
+                return BadRequest(new { mensaje = "La materia especificada no existe o está inactiva" });
+
+            var profesorExiste = await _context.Usuarios.AnyAsync(u =>
+                u.IdUsuario == dto.IdUsuario && u.Activo &&
+                u.Rol != null && u.Rol.Activo && u.Rol.Nombre == "Docente");
+            if (!profesorExiste)
+                return BadRequest(new { mensaje = "El usuario seleccionado debe ser un docente activo" });
+
+            var tipoExiste = await _context.GruposTipos.AnyAsync(t =>
+                t.IdGrupoTipo == dto.IdGrupoTipo && t.Activo);
+            if (!tipoExiste)
+                return BadRequest(new { mensaje = "El tipo de grupo especificado no existe o está inactivo" });
+
             grupo.IdMateria = dto.IdMateria;
             grupo.IdUsuario = dto.IdUsuario;
             grupo.IdGrupoTipo = dto.IdGrupoTipo;
@@ -171,6 +189,11 @@ namespace PortalNoticiasAPI.Controllers
             var grupo = await _context.Grupos.FindAsync(id);
             if (grupo == null || !grupo.Activo)
                 return NotFound(new { mensaje = $"No se encontró el grupo con id {id}" });
+
+            var tieneInscripcionesActivas = await _context.GruposAlumnos
+                .AnyAsync(ga => ga.IdGrupo == id && ga.Activo);
+            if (tieneInscripcionesActivas)
+                return Conflict(new { mensaje = "No se puede desactivar el grupo porque tiene alumnos inscritos" });
 
             grupo.Activo = false;
             await _context.SaveChangesAsync();
@@ -227,14 +250,29 @@ namespace PortalNoticiasAPI.Controllers
             if (!grupoExiste)
                 return BadRequest(new { mensaje = "El grupo especificado no existe o está inactivo" });
 
-            var alumnoExiste = await _context.Usuarios.AnyAsync(u => u.IdUsuario == dto.IdUsuario && u.Activo);
+            var alumnoExiste = await _context.Usuarios.AnyAsync(u =>
+                u.IdUsuario == dto.IdUsuario && u.Activo &&
+                u.Rol != null && u.Rol.Activo && u.Rol.Nombre == "Alumno");
             if (!alumnoExiste)
-                return BadRequest(new { mensaje = "El alumno especificado no existe o está inactivo" });
+                return BadRequest(new { mensaje = "El usuario seleccionado debe ser un alumno activo" });
 
-            var yaInscrito = await _context.GruposAlumnos
-                .AnyAsync(ga => ga.IdGrupo == dto.IdGrupo && ga.IdUsuario == dto.IdUsuario && ga.Activo);
-            if (yaInscrito)
-                return BadRequest(new { mensaje = "El alumno ya está inscrito en este grupo" });
+            var inscripcionAnterior = await _context.GruposAlumnos
+                .FirstOrDefaultAsync(ga => ga.IdGrupo == dto.IdGrupo && ga.IdUsuario == dto.IdUsuario);
+            if (inscripcionAnterior != null)
+            {
+                if (inscripcionAnterior.Activo)
+                    return Conflict(new { mensaje = "El alumno ya está inscrito en este grupo" });
+
+                // Reutilizar el registro para respetar la clave única (idGrupo, idUsuario).
+                inscripcionAnterior.Activo = true;
+                await _context.SaveChangesAsync();
+                return Ok(new GrupoAlumnoDto
+                {
+                    IdGrupoAlumno = inscripcionAnterior.IdGrupoAlumno,
+                    IdGrupo = inscripcionAnterior.IdGrupo,
+                    IdUsuario = inscripcionAnterior.IdUsuario
+                });
+            }
 
             var inscripcion = new GrupoAlumno
             {
