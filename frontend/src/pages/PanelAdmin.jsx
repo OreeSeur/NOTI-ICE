@@ -3,6 +3,8 @@ import {
   GraduationCap,
   BookOpen,
   Layers,
+  ClipboardList,
+  UsersRound,
   CalendarDays,
   FileText,
   UserPlus,
@@ -205,6 +207,18 @@ export const PanelAdmin = () => {
       description: "Gestionar modalidades académicas",
       icon: Layers,
       to: ROUTES.ADMIN_TIPOS_GRUPOS,
+    },
+    {
+      title: "Grupos académicos",
+      description: "Asignar docentes y definir horarios",
+      icon: UsersRound,
+      to: ROUTES.ADMIN_GRUPOS,
+    },
+    {
+      title: "Inscripciones oficiales",
+      description: "Gestionar alumnos por grupo",
+      icon: ClipboardList,
+      to: ROUTES.ADMIN_INSCRIPCIONES,
     },
     {
       title: "Nuevo usuario",

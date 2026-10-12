@@ -33,6 +33,8 @@ import { PanelAdmin } from "../pages/PanelAdmin";
 import { AdminAcademias } from "../pages/admin/academias/AdminAcademias";
 import { AdminMaterias } from "../pages/admin/materias/AdminMaterias";
 import { AdminTiposGrupos } from "../pages/admin/tipos-grupos/AdminTiposGrupos";
+import { AdminGrupos } from "../pages/admin/grupos/AdminGrupos";
+import { AdminInscripciones } from "../pages/admin/inscripciones/AdminInscripciones";
 
 import { AdminNoticias } from "../pages/admin/noticias/AdminNoticias";
 import { AdminEditarNoticia } from "../pages/admin/noticias/AdminEditarNoticia";
@@ -260,6 +262,16 @@ return ( <Routes>
       </RoleRoute>
     }
   />
+
+{/* Gestión de grupos e inscripciones oficiales (solo administrador) */}
+<Route
+  path={ROUTES.ADMIN_GRUPOS}
+  element={<AdminRoute><Layout><AdminGrupos /></Layout></AdminRoute>}
+/>
+<Route
+  path={ROUTES.ADMIN_INSCRIPCIONES}
+  element={<AdminRoute><Layout><AdminInscripciones /></Layout></AdminRoute>}
+/>
 
 {/* Administración */}
 <Route
