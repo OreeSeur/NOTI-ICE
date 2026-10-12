@@ -64,7 +64,16 @@ namespace PortalNoticiasAPI.Controllers
             var tipo = await _context.GruposTipos.FindAsync(id);
             if (tipo == null || !tipo.Activo)
                 return NotFound(new { mensaje = $"No se encontró el tipo de grupo con id {id}" });
+            var tieneGruposActivos = await _context.Grupos
+                .AnyAsync(g => g.IdGrupoTipo == id && g.Activo);
 
+            if (tieneGruposActivos)
+            {
+                return Conflict(new
+                {
+                    mensaje = "No se puede desactivar el tipo de grupo porque tiene grupos activos asociados."
+                });
+            }
             tipo.Activo = false;
             await _context.SaveChangesAsync();
             return NoContent();

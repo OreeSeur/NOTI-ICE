@@ -62,6 +62,9 @@ namespace PortalNoticiasAPI.DTOs
 
     public class GrupoTipoCreateUpdateDto
     {
+        [Required(ErrorMessage = "El tipo de grupo es obligatorio.")]
+        [StringLength(100,
+            ErrorMessage = "El tipo de grupo no puede superar los 100 caracteres.")]
         public string Tipo { get; set; } = string.Empty;
     }
 }
