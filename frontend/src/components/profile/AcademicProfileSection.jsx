@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { MisInscripcionesOficiales } from "./MisInscripcionesOficiales";
 import {
   ClipboardList,
   GraduationCap,
@@ -679,7 +680,12 @@ export const AcademicProfileSection = ({ user, onSaveAcademicProfile }) => {
   const role = normalizeRole(user?.rol);
 
   if (role === ROLES.ALUMNO) {
-    return <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />;
+    return (
+      <>
+        <MisInscripcionesOficiales />
+        <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />
+      </>
+    );
   }
 
   if (role === ROLES.DOCENTE) {

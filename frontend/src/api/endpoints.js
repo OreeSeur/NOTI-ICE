@@ -12,6 +12,7 @@ export const ENDPOINTS = Object.freeze({
   materias: "/materias",
   grupos: "/grupos",
   gruposInscribir: "/grupos/inscribir",
+  gruposMisInscripciones: "/grupos/mis-inscripciones",
   noticias: "/noticias",
   eventos: "/eventos",
   documentos: "/documentos",
