@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PortalNoticiasAPI.Data;
 using PortalNoticiasAPI.DTOs;
 using PortalNoticiasAPI.Models;
+using PortalNoticiasAPI.Services;
 
 namespace PortalNoticiasAPI.Controllers
 {
@@ -13,11 +14,20 @@ namespace PortalNoticiasAPI.Controllers
     public class ComentariosController : ControllerBase
     {
         private readonly PortalNoticiasContext _context;
-        public ComentariosController(PortalNoticiasContext context) => _context = context;
+        private readonly AudienciaAccesoService _audiencias;
+        public ComentariosController(PortalNoticiasContext context, AudienciaAccesoService audiencias)
+        {
+            _context = context;
+            _audiencias = audiencias;
+        }
 
         [HttpGet("porNoticia/{idNoticia}")]
         public async Task<ActionResult<IEnumerable<ComentarioDto>>> GetComentariosPorNoticia(int idNoticia)
         {
+            var noticia = await _context.Noticias.FirstOrDefaultAsync(n => n.IdNoticia == idNoticia && n.Activo);
+            if (noticia == null || !_audiencias.PuedeVer(noticia.AudienciaJson,
+                    await _audiencias.UsuarioActualAsync(User))) return NotFound();
+
             var comentarios = await _context.NoticiasComentarios
                 .Include(nc => nc.Comentario)
                     .ThenInclude(c => c!.Usuario)
@@ -41,9 +51,10 @@ namespace PortalNoticiasAPI.Controllers
         [Authorize]
         public async Task<ActionResult<ComentarioDto>> CrearComentario(ComentarioCreateDto dto)
         {
-            var noticiaExiste = await _context.Noticias.AnyAsync(n => n.IdNoticia == dto.IdNoticia && n.Activo);
-            if (!noticiaExiste)
-                return BadRequest(new { mensaje = "La noticia especificada no existe o está inactiva" });
+            var noticia = await _context.Noticias.FirstOrDefaultAsync(n => n.IdNoticia == dto.IdNoticia && n.Activo);
+            if (noticia == null || !_audiencias.PuedeVer(noticia.AudienciaJson,
+                    await _audiencias.UsuarioActualAsync(User)))
+                return NotFound(new { mensaje = "La noticia no está disponible" });
 
             // La identidad del autor se obtiene del JWT, nunca del IdUsuario enviado por el cliente.
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idUsuario))

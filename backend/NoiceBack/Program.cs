@@ -4,7 +4,6 @@ using Microsoft.IdentityModel.Tokens;
 using PortalNoticiasAPI.Data;
 using PortalNoticiasAPI.Services;
 using System.Text;
-using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +48,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<AudienciaAccesoService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -108,13 +108,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("FrontendPolicy");
-var carpetaUploads = Path.Combine(builder.Environment.ContentRootPath, "uploads");
-Directory.CreateDirectory(carpetaUploads);
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(carpetaUploads),
-    RequestPath = "/uploads"
-});
+// No publicar /uploads como archivos estáticos: la descarga pasa por la API
+// y se valida contra la audiencia de cada documento.
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

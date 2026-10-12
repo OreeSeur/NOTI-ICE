@@ -15,12 +15,14 @@ namespace PortalNoticiasAPI.Controllers
     public class EventosController : ControllerBase
     {
         private readonly PortalNoticiasContext _context;
+        private readonly AudienciaAccesoService _audiencias;
         private readonly NotificacionCorreoService _notificaciones;
         private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-        public EventosController(PortalNoticiasContext context, NotificacionCorreoService notificaciones)
+        public EventosController(PortalNoticiasContext context, NotificacionCorreoService notificaciones, AudienciaAccesoService audiencias)
         {
             _context = context;
+            _audiencias = audiencias;
             _notificaciones = notificaciones;
         }
 
@@ -76,7 +78,9 @@ namespace PortalNoticiasAPI.Controllers
                 .OrderBy(e => e.FechaInicio)
                 .ToListAsync();
 
-            return Ok(eventos.Select(ToDto));
+            var usuario = await _audiencias.UsuarioActualAsync(User);
+            return Ok(eventos.Where(e => _audiencias.PuedeVer(e.AudienciaJson, usuario))
+                .Select(ToDto).ToList());
         }
 
         [HttpGet("{id}")]
@@ -88,6 +92,9 @@ namespace PortalNoticiasAPI.Controllers
 
             if (evento == null)
                 return NotFound(new { mensaje = $"No se encontró el evento con id {id}" });
+
+            var usuario = await _audiencias.UsuarioActualAsync(User);
+            if (!_audiencias.PuedeVer(evento.AudienciaJson, usuario)) return NotFound();
 
             return Ok(ToDto(evento));
         }

@@ -15,6 +15,7 @@ namespace PortalNoticiasAPI.Controllers
     public class DocumentosController : ControllerBase
     {
         private readonly PortalNoticiasContext _context;
+        private readonly AudienciaAccesoService _audiencias;
         private readonly IWebHostEnvironment _env;
         private readonly NotificacionCorreoService _notificaciones;
         private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -22,9 +23,11 @@ namespace PortalNoticiasAPI.Controllers
         public DocumentosController(
             PortalNoticiasContext context,
             IWebHostEnvironment env,
-            NotificacionCorreoService notificaciones)
+            NotificacionCorreoService notificaciones,
+            AudienciaAccesoService audiencias)
         {
             _context = context;
+            _audiencias = audiencias;
             _env = env;
             _notificaciones = notificaciones;
         }
@@ -77,11 +80,14 @@ namespace PortalNoticiasAPI.Controllers
         {
             var documentos = await _context.NoticiasDocumentos
                 .Include(d => d.Usuario)
+                .Include(d => d.Noticia)
                 .Where(d => d.Activo)
                 .OrderByDescending(d => d.FechaPublicacion ?? d.FechaAlta)
                 .ToListAsync();
 
-            return Ok(documentos.Select(ToDto));
+            var usuario = await _audiencias.UsuarioActualAsync(User);
+            return Ok(documentos.Where(d => PuedeVerDocumento(d, usuario))
+                .Select(ToDto).ToList());
         }
 
         [HttpGet("{id}")]
@@ -89,12 +95,50 @@ namespace PortalNoticiasAPI.Controllers
         {
             var documento = await _context.NoticiasDocumentos
                 .Include(d => d.Usuario)
+                .Include(d => d.Noticia)
                 .FirstOrDefaultAsync(d => d.IdNoticiaDocumento == id && d.Activo);
 
             if (documento == null)
                 return NotFound(new { mensaje = $"No se encontró el documento con id {id}" });
 
+            var usuario = await _audiencias.UsuarioActualAsync(User);
+            if (!PuedeVerDocumento(documento, usuario)) return NotFound();
+
             return Ok(ToDto(documento));
+        }
+
+        private bool PuedeVerDocumento(NoticiaDocumento d, Usuario? usuario) =>
+            _audiencias.PuedeVer(d.AudienciaJson, usuario) &&
+            (!d.IdNoticia.HasValue || (d.Noticia is { Activo: true } noticia &&
+                _audiencias.PuedeVer(noticia.AudienciaJson, usuario)));
+
+        // Descarga protegida. No entregar nunca los adjuntos desde /uploads.
+        [HttpGet("{id}/archivo")]
+        public async Task<IActionResult> DescargarArchivo(int id)
+        {
+            var documento = await _context.NoticiasDocumentos
+                .Include(d => d.Noticia)
+                .FirstOrDefaultAsync(d => d.IdNoticiaDocumento == id && d.Activo);
+            if (documento == null) return NotFound();
+
+            var usuario = await _audiencias.UsuarioActualAsync(User);
+            if (!PuedeVerDocumento(documento, usuario)) return NotFound();
+
+            const string prefijo = "/uploads/";
+            var ruta = documento.RutaArchivo;
+            if (string.IsNullOrWhiteSpace(ruta) ||
+                !ruta.StartsWith(prefijo, StringComparison.OrdinalIgnoreCase)) return NotFound();
+
+            var nombre = ruta[prefijo.Length..];
+            if (nombre.Length == 0 || nombre != Path.GetFileName(nombre) ||
+                nombre.Contains('\\') || nombre.Contains('/')) return NotFound();
+
+            var rutaFisica = Path.Combine(_env.ContentRootPath, "uploads", nombre);
+            if (!System.IO.File.Exists(rutaFisica)) return NotFound();
+
+            var tipos = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+            if (!tipos.TryGetContentType(nombre, out var tipo)) tipo = "application/octet-stream";
+            return PhysicalFile(rutaFisica, tipo, nombre);
         }
 
         // POST: api/documentos (multipart/form-data)
@@ -119,7 +163,7 @@ namespace PortalNoticiasAPI.Controllers
                 var carpetaUploads = Path.Combine(_env.ContentRootPath, "uploads");
                 Directory.CreateDirectory(carpetaUploads);
 
-                var nombreUnico = $"{Guid.NewGuid()}_{dto.Archivo!.FileName}";
+                var nombreUnico = $"{Guid.NewGuid()}_{Path.GetFileName(dto.Archivo!.FileName.Replace('\\', '/'))}";
                 var rutaFisica = Path.Combine(carpetaUploads, nombreUnico);
 
                 using (var stream = new FileStream(rutaFisica, FileMode.Create))
@@ -187,7 +231,7 @@ namespace PortalNoticiasAPI.Controllers
                 var carpetaUploads = Path.Combine(_env.ContentRootPath, "uploads");
                 Directory.CreateDirectory(carpetaUploads);
 
-                var nombreUnico = $"{Guid.NewGuid()}_{dto.Archivo.FileName}";
+                var nombreUnico = $"{Guid.NewGuid()}_{Path.GetFileName(dto.Archivo.FileName.Replace('\\', '/'))}";
                 var rutaFisica = Path.Combine(carpetaUploads, nombreUnico);
 
                 using (var stream = new FileStream(rutaFisica, FileMode.Create))

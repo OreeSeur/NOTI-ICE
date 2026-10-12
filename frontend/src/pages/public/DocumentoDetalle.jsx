@@ -1,5 +1,8 @@
 import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import { isApiDataSource } from "../../config/appConfig";
+import { descargarArchivoDocumentoApi } from "../../services/documentosService";
 
 import { AcademicTargetSummary } from "../../components/common/AcademicTargetSummary";
 import { AudienceSummary } from "../../components/common/AudienceSummary";
@@ -15,6 +18,8 @@ import { mismoId } from "../../utils/id";
 
 export const DocumentoDetalle = () => {
   const { id } = useParams();
+  const [descargando, setDescargando] = useState(false);
+  const [errorDescarga, setErrorDescarga] = useState("");
 
   const { documentos } = useDocumentos();
 
@@ -39,6 +44,22 @@ export const DocumentoDetalle = () => {
       </section>
     );
   }
+
+  const descargar = async () => {
+    if (!isApiDataSource()) {
+      window.open(documento.archivoUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setDescargando(true);
+    setErrorDescarga("");
+    try {
+      await descargarArchivoDocumentoApi(documento);
+    } catch (error) {
+      setErrorDescarga(error.message || "No se pudo descargar el archivo");
+    } finally {
+      setDescargando(false);
+    }
+  };
 
   const titulo = getDocumentTitle(documento);
   const icono = getDocumentIcon(documento.tipo);
@@ -95,15 +116,15 @@ export const DocumentoDetalle = () => {
             {documento.archivoUrl || documento.url ? (
               <div className="mt-8 flex flex-wrap gap-3">
                 {documento.archivoUrl && (
-                  <a
-                    href={documento.archivoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#6F1D46] px-6 py-3 font-semibold text-white transition hover:opacity-90"
+                  <button
+                    type="button"
+                    onClick={descargar}
+                    disabled={descargando}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#6F1D46] px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
-                    Descargar archivo
+                    {descargando ? "Descargando..." : "Descargar archivo"}
                     <ExternalLink size={18} />
-                  </a>
+                  </button>
                 )}
 
                 {documento.url && (
@@ -123,6 +144,7 @@ export const DocumentoDetalle = () => {
                 Este documento no tiene un archivo ni un enlace disponible.
               </p>
             )}
+            {errorDescarga && <p role="alert" className="mt-3 text-sm text-red-600">{errorDescarga}</p>}
           </div>
 
           <aside className="space-y-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/40">

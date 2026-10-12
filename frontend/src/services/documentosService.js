@@ -1,12 +1,6 @@
-import { get, post, put, remove } from "../api/apiClient";
+import { apiClient, get, post, put, remove } from "../api/apiClient";
 import { ENDPOINTS } from "../api/endpoints";
-import { appConfig } from "../config/appConfig";
 import { normalizeAudience } from "../utils/audience";
-
-// Los archivos subidos los sirve el backend en https://host:puerto/uploads/...
-// (la API vive en https://host:puerto/api), así que quitamos el "/api" del final.
-const getApiOrigin = () =>
-  String(appConfig.apiUrl || "").replace(/\/$/, "").replace(/\/api$/, "");
 
 // El backend guarda el archivo como "GUID_nombreOriginal.ext".
 // Para mostrarlo bonito, quitamos el prefijo del GUID.
@@ -27,7 +21,7 @@ const mapDocumentoFromApi = (d) => ({
   fecha: d.fechaPublicacion ? d.fechaPublicacion.substring(0, 10) : "",
   url: d.url || "",
   archivoNombre: extraerNombreArchivo(d.rutaArchivo),
-  archivoUrl: d.rutaArchivo ? `${getApiOrigin()}${d.rutaArchivo}` : "",
+  archivoUrl: d.rutaArchivo ? `${ENDPOINTS.documentos}/${d.idNoticiaDocumento}/archivo` : "",
   activo: d.activo,
   audiencia: normalizeAudience(d.audiencia),
 });
@@ -69,4 +63,23 @@ export const editarDocumentoApi = async (id, datosFormulario) => {
 
 export const eliminarDocumentoApi = async (id) => {
   await remove(`${ENDPOINTS.documentos}/${id}`);
+};
+
+// Archivo protegido: usa el cliente Axios que agrega Authorization automáticamente.
+export const descargarArchivoDocumentoApi = async (documento) => {
+  const blob = await apiClient(`${ENDPOINTS.documentos}/${documento.id}/archivo`, {
+    responseType: "blob",
+  });
+  const urlTemporal = URL.createObjectURL(blob);
+  try {
+    const enlace = document.createElement("a");
+    enlace.href = urlTemporal;
+    enlace.download = documento.archivoNombre || "documento";
+    enlace.style.display = "none";
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(urlTemporal), 1000);
+  }
 };

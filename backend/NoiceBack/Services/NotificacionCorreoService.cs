@@ -1,6 +1,4 @@
 using System.Net;
-using System.Text;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortalNoticiasAPI.Data;
 
@@ -10,7 +8,6 @@ namespace PortalNoticiasAPI.Services
     // (misma regla que aplica la interfaz) y que no hayan desactivado los avisos por correo.
     public class NotificacionCorreoService
     {
-        private const string Todos = "todos";
         private const int MaxDescripcion = 280;
 
         private readonly IServiceScopeFactory _scopes;
@@ -28,13 +25,6 @@ namespace PortalNoticiasAPI.Services
             _email = email;
             _config = config;
             _logger = logger;
-        }
-
-        private class AudienciaLeida
-        {
-            public List<string>? Roles { get; set; }
-            public List<string>? Carreras { get; set; }
-            public List<string>? Semestres { get; set; }
         }
 
         // tipo: "Noticia", "Evento" o "Documento". ruta: por ejemplo "/noticias/12".
@@ -56,13 +46,14 @@ namespace PortalNoticiasAPI.Services
             {
                 using var scope = _scopes.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<PortalNoticiasContext>();
+                var acceso = scope.ServiceProvider.GetRequiredService<AudienciaAccesoService>();
 
                 var candidatos = await context.Usuarios
-                    .Where(u => u.Activo && u.NotificarPorCorreo && (idAutor == null || u.IdUsuario != idAutor))
-                    .Select(u => new { u.Nombre, u.Correo, Rol = u.Rol!.Nombre, u.Carrera, u.Semestre })
+                    .AsNoTracking()
+                    .Include(u => u.Rol)
+                    .Where(u => u.Activo && u.NotificarPorCorreo && u.Rol != null && u.Rol.Activo &&
+                        (idAutor == null || u.IdUsuario != idAutor))
                     .ToListAsync();
-
-                var audiencia = LeerAudiencia(audienciaJson);
                 var urgente = string.Equals(prioridad, "urgente", StringComparison.OrdinalIgnoreCase);
                 var asunto = $"{(urgente ? "URGENTE · " : "")}Nueva {tipo.ToLowerInvariant()}: {titulo}";
                 var baseUrl = (_config["Frontend:BaseUrl"] ?? "").TrimEnd('/');
@@ -82,7 +73,7 @@ namespace PortalNoticiasAPI.Services
                 var enviados = 0;
                 foreach (var destinatario in candidatos)
                 {
-                    if (!Coincide(audiencia, destinatario.Rol, destinatario.Carrera, destinatario.Semestre)) continue;
+                    if (!acceso.PuedeVer(audienciaJson, destinatario)) continue;
 
                     try
                     {
@@ -101,64 +92,6 @@ namespace PortalNoticiasAPI.Services
             {
                 _logger.LogError(ex, "Falló el envío de avisos por correo");
             }
-        }
-
-        private static AudienciaLeida LeerAudiencia(string? json)
-        {
-            if (string.IsNullOrWhiteSpace(json)) return new AudienciaLeida();
-
-            try
-            {
-                return JsonSerializer.Deserialize<AudienciaLeida>(
-                    json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AudienciaLeida();
-            }
-            catch (JsonException)
-            {
-                return new AudienciaLeida();
-            }
-        }
-
-        // Quita acentos y mayúsculas; los guiones cuentan como espacios ("comunicaciones-y-electronica")
-        private static string Normalizar(string? texto)
-        {
-            if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-
-            var descompuesto = texto.Trim().ToLowerInvariant().Replace('-', ' ').Normalize(NormalizationForm.FormD);
-            var sb = new StringBuilder();
-            foreach (var c in descompuesto)
-            {
-                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-                    sb.Append(c);
-            }
-            return sb.ToString();
-        }
-
-        private static bool IncluyeTodos(List<string>? seleccion) =>
-            seleccion == null || seleccion.Count == 0 || seleccion.Any(v => Normalizar(v) == Todos);
-
-        private static string NormalizarRol(string? rol)
-        {
-            var r = Normalizar(rol);
-            return r == "administrador" ? "admin" : r;
-        }
-
-        // Misma regla que la interfaz: el Administrador recibe todo; los demás, según rol, carrera y semestre
-        private static bool Coincide(AudienciaLeida audiencia, string rol, string? carrera, int? semestre)
-        {
-            if (NormalizarRol(rol) == "admin") return true;
-
-            var coincideRol = IncluyeTodos(audiencia.Roles) ||
-                audiencia.Roles!.Any(v => NormalizarRol(v) == NormalizarRol(rol));
-
-            var carreraUsuario = Normalizar(carrera);
-            var coincideCarrera = IncluyeTodos(audiencia.Carreras) ||
-                (carreraUsuario.Length > 0 &&
-                 audiencia.Carreras!.Any(v => carreraUsuario.Contains(Normalizar(v))));
-
-            var coincideSemestre = IncluyeTodos(audiencia.Semestres) ||
-                (semestre != null && audiencia.Semestres!.Any(v => v.Trim() == semestre.Value.ToString()));
-
-            return coincideRol && coincideCarrera && coincideSemestre;
         }
 
         private static string Recortar(string texto) =>
