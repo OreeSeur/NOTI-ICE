@@ -1,6 +1,8 @@
 import {
   Bell,
   GraduationCap,
+  BookOpen,
+  Layers,
   CalendarDays,
   FileText,
   UserPlus,
@@ -191,6 +193,18 @@ export const PanelAdmin = () => {
       description: "Gestionar el catálogo académico",
       icon: GraduationCap,
       to: ROUTES.ADMIN_ACADEMIAS,
+    },
+    {
+      title: "Materias",
+      description: "Asignar materias a academias",
+      icon: BookOpen,
+      to: ROUTES.ADMIN_MATERIAS,
+    },
+    {
+      title: "Tipos de grupos",
+      description: "Gestionar modalidades académicas",
+      icon: Layers,
+      to: ROUTES.ADMIN_TIPOS_GRUPOS,
     },
     {
       title: "Nuevo usuario",

@@ -31,6 +31,8 @@ import { Login } from "../pages/auth/Login";
 /* Administración */
 import { PanelAdmin } from "../pages/PanelAdmin";
 import { AdminAcademias } from "../pages/admin/academias/AdminAcademias";
+import { AdminMaterias } from "../pages/admin/materias/AdminMaterias";
+import { AdminTiposGrupos } from "../pages/admin/tipos-grupos/AdminTiposGrupos";
 
 import { AdminNoticias } from "../pages/admin/noticias/AdminNoticias";
 import { AdminEditarNoticia } from "../pages/admin/noticias/AdminEditarNoticia";
@@ -260,6 +262,26 @@ return ( <Routes>
   />
 
 {/* Administración */}
+<Route
+  path={ROUTES.ADMIN_MATERIAS}
+  element={
+    <AdminRoute>
+      <Layout>
+        <AdminMaterias />
+      </Layout>
+    </AdminRoute>
+  }
+/>
+<Route
+  path={ROUTES.ADMIN_TIPOS_GRUPOS}
+  element={
+    <AdminRoute>
+      <Layout>
+        <AdminTiposGrupos />
+      </Layout>
+    </AdminRoute>
+  }
+/>
 <Route
   path={ROUTES.ADMIN_ACADEMIAS}
   element={
