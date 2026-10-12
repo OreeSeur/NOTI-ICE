@@ -7,8 +7,18 @@ import {
   eliminarNoticiaApi,
 } from "../../services/noticiasService";
 import { NoticiasContext } from "./NoticiasContext";
+import { useAuth } from "../auth/useAuth";
 
 export const NoticiasProvider = ({ children }) => {
+  const { user } = useAuth();
+  // Los resultados del API dependen de la identidad y la audiencia del usuario.
+  const claveAudiencia = [
+    user?.id ?? "anonimo",
+    user?.rol ?? "",
+    user?.carrera ?? "",
+    user?.semestre ?? "",
+  ].join("|");
+  const [claveCargada, setClaveCargada] = useState(null);
   const [noticias, setNoticias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,15 +37,21 @@ export const NoticiasProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    // Reconsulta al cambiar de usuario, rol, carrera o semestre.
     let activo = true;
 
     obtenerNoticias()
       .then((datos) => {
-        if (activo) setNoticias(datos);
+        if (!activo) return;
+        setNoticias(datos);
+        setError(null);
+        setClaveCargada(claveAudiencia);
       })
       .catch((err) => {
-        if (activo) setError(err.message || "No se pudieron cargar las noticias");
+        if (!activo) return;
+        setNoticias([]);
+        setError(err.message || "No se pudieron cargar las noticias");
+        setClaveCargada(claveAudiencia);
       })
       .finally(() => {
         if (activo) setLoading(false);
@@ -44,7 +60,7 @@ export const NoticiasProvider = ({ children }) => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [claveAudiencia]);
 
   // idUsuario: quién publica la noticia (normalmente el admin logueado)
   const agregarNoticia = useCallback(async (nuevoNoticia, idUsuario) => {
@@ -77,15 +93,15 @@ export const NoticiasProvider = ({ children }) => {
 
   const value = useMemo(
     () => ({
-      noticias,
-      loading,
+      noticias: claveCargada === claveAudiencia ? noticias : [],
+      loading: loading || claveCargada !== claveAudiencia,
       error,
       recargarNoticias: cargarNoticias,
       agregarNoticia,
       eliminarNoticia,
       editarNoticia,
     }),
-    [noticias, loading, error, cargarNoticias, agregarNoticia, eliminarNoticia, editarNoticia]
+    [noticias, loading, claveCargada, claveAudiencia, error, cargarNoticias, agregarNoticia, eliminarNoticia, editarNoticia]
   );
 
   return (

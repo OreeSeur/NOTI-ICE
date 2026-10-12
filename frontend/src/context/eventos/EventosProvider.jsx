@@ -7,22 +7,38 @@ import {
   eliminarEventoApi,
 } from "../../services/eventosService";
 import { EventosContext } from "./EventosContext";
+import { useAuth } from "../auth/useAuth";
 
 export const EventosProvider = ({ children }) => {
+  const { user } = useAuth();
+  // Los resultados del API dependen de la identidad y la audiencia del usuario.
+  const claveAudiencia = [
+    user?.id ?? "anonimo",
+    user?.rol ?? "",
+    user?.carrera ?? "",
+    user?.semestre ?? "",
+  ].join("|");
+  const [claveCargada, setClaveCargada] = useState(null);
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    // Reconsulta al cambiar de usuario, rol, carrera o semestre.
     let activo = true;
 
     obtenerEventos()
       .then((datos) => {
-        if (activo) setEventos(datos);
+        if (!activo) return;
+        setEventos(datos);
+        setError(null);
+        setClaveCargada(claveAudiencia);
       })
       .catch((err) => {
-        if (activo) setError(err.message || "No se pudieron cargar los eventos");
+        if (!activo) return;
+        setEventos([]);
+        setError(err.message || "No se pudieron cargar los eventos");
+        setClaveCargada(claveAudiencia);
       })
       .finally(() => {
         if (activo) setLoading(false);
@@ -31,7 +47,7 @@ export const EventosProvider = ({ children }) => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [claveAudiencia]);
 
   const agregarEvento = useCallback(async (nuevoEvento, idUsuario) => {
     const creado = await crearEventoApi(nuevoEvento, idUsuario);
@@ -59,14 +75,14 @@ export const EventosProvider = ({ children }) => {
 
   const value = useMemo(
     () => ({
-      eventos,
-      loading,
+      eventos: claveCargada === claveAudiencia ? eventos : [],
+      loading: loading || claveCargada !== claveAudiencia,
       error,
       agregarEvento,
       eliminarEvento,
       editarEvento,
     }),
-    [eventos, loading, error, agregarEvento, eliminarEvento, editarEvento]
+    [eventos, loading, claveCargada, claveAudiencia, error, agregarEvento, eliminarEvento, editarEvento]
   );
 
   return (

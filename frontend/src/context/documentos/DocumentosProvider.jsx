@@ -7,8 +7,18 @@ import {
   eliminarDocumentoApi,
 } from "../../services/documentosService";
 import { DocumentosContext } from "./DocumentosContext";
+import { useAuth } from "../auth/useAuth";
 
 export const DocumentosProvider = ({ children }) => {
+  const { user } = useAuth();
+  // Los resultados del API dependen de la identidad y la audiencia del usuario.
+  const claveAudiencia = [
+    user?.id ?? "anonimo",
+    user?.rol ?? "",
+    user?.carrera ?? "",
+    user?.semestre ?? "",
+  ].join("|");
+  const [claveCargada, setClaveCargada] = useState(null);
   const [documentos, setDocumentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,15 +38,21 @@ export const DocumentosProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // Carga inicial asincrona; evita actualizar el estado si el componente se desmonta.
+    // Reconsulta al cambiar de usuario, rol, carrera o semestre.
     let activo = true;
 
     obtenerDocumentos()
       .then((datos) => {
-        if (activo) setDocumentos(datos);
+        if (!activo) return;
+        setDocumentos(datos);
+        setError(null);
+        setClaveCargada(claveAudiencia);
       })
       .catch((err) => {
-        if (activo) setError(err.message || "No se pudieron cargar los documentos");
+        if (!activo) return;
+        setDocumentos([]);
+        setError(err.message || "No se pudieron cargar los documentos");
+        setClaveCargada(claveAudiencia);
       })
       .finally(() => {
         if (activo) setLoading(false);
@@ -45,7 +61,7 @@ export const DocumentosProvider = ({ children }) => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [claveAudiencia]);
 
   const agregarDocumento = useCallback(async (nuevoDocumento) => {
     const creado = await crearDocumentoApi(nuevoDocumento);
@@ -70,15 +86,15 @@ export const DocumentosProvider = ({ children }) => {
 
   const value = useMemo(
     () => ({
-      documentos,
-      loading,
+      documentos: claveCargada === claveAudiencia ? documentos : [],
+      loading: loading || claveCargada !== claveAudiencia,
       error,
       recargarDocumentos: cargarDocumentos,
       agregarDocumento,
       eliminarDocumento,
       editarDocumento,
     }),
-    [documentos, loading, error, cargarDocumentos, agregarDocumento, eliminarDocumento, editarDocumento]
+    [documentos, loading, claveCargada, claveAudiencia, error, cargarDocumentos, agregarDocumento, eliminarDocumento, editarDocumento]
   );
 
   return (
