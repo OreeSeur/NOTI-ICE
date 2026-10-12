@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -146,8 +147,30 @@ namespace PortalNoticiasAPI.Controllers
         // ---------- Sub-recurso: alumnos inscritos en el grupo ----------
 
         [HttpGet("{idGrupo}/alumnos")]
+        [Authorize(Roles = "Administrador,Docente")]
         public async Task<ActionResult<IEnumerable<GrupoAlumnoDto>>> GetAlumnosDeGrupo(int idGrupo)
         {
+            // Solo consultar alumnos de grupos activos.
+            var grupo = await _context.Grupos
+                .AsNoTracking()
+                .Where(g => g.IdGrupo == idGrupo && g.Activo)
+                .Select(g => new { g.IdUsuario })
+                .FirstOrDefaultAsync();
+
+            if (grupo == null)
+                return NotFound();
+
+            // Un docente puede consultar unicamente los alumnos de sus grupos.
+            // El ID procede del JWT validado, nunca de un parametro del cliente.
+            if (!User.IsInRole("Administrador"))
+            {
+                if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idDocente))
+                    return Forbid();
+
+                if (grupo.IdUsuario != idDocente)
+                    return Forbid();
+            }
+
             var alumnos = await _context.GruposAlumnos
                 .Include(ga => ga.Alumno)
                 .Where(ga => ga.IdGrupo == idGrupo && ga.Activo)
