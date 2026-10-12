@@ -43,6 +43,39 @@ namespace PortalNoticiasAPI.Controllers
             return Ok(grupos);
         }
 
+        // Inscripciones del alumno autenticado. El identificador se obtiene del JWT.
+        [HttpGet("mis-inscripciones")]
+        [Authorize(Roles = "Alumno")]
+        public async Task<IActionResult> GetMisInscripciones()
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idAlumno))
+                return Forbid();
+
+            var inscripciones = await _context.GruposAlumnos
+                .AsNoTracking()
+                .Where(ga => ga.IdUsuario == idAlumno && ga.Activo && ga.Grupo!.Activo)
+                .OrderBy(ga => ga.IdGrupoAlumno)
+                .Select(ga => new
+                {
+                    ga.IdGrupoAlumno,
+                    ga.IdGrupo,
+                    ga.Grupo!.IdMateria,
+                    MateriaNombre = ga.Grupo.Materia!.MateriaNombre,
+                    IdDocente = ga.Grupo.IdUsuario,
+                    DocenteNombre = ga.Grupo.Profesor!.Nombre,
+                    ga.Grupo.IdGrupoTipo,
+                    GrupoTipoNombre = ga.Grupo.GrupoTipoNav!.Tipo,
+                    ga.Grupo.FechaInicio,
+                    ga.Grupo.FechaFin,
+                    ga.Grupo.HoraInicio,
+                    ga.Grupo.HoraFin,
+                    ga.Grupo.Dias
+                })
+                .ToListAsync();
+
+            return Ok(inscripciones);
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<GrupoDto>> GetGrupo(int id)
         {
