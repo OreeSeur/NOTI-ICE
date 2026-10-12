@@ -1,5 +1,6 @@
 import {
   Bell,
+  GraduationCap,
   CalendarDays,
   FileText,
   UserPlus,
@@ -185,6 +186,12 @@ export const PanelAdmin = () => {
   ];
 
   const accionesRapidas = [
+    {
+      title: "Academias",
+      description: "Gestionar el catálogo académico",
+      icon: GraduationCap,
+      to: ROUTES.ADMIN_ACADEMIAS,
+    },
     {
       title: "Nuevo usuario",
       description: "Agrega acceso para la comunidad",

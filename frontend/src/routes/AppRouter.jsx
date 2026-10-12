@@ -30,6 +30,7 @@ import { Login } from "../pages/auth/Login";
 
 /* Administración */
 import { PanelAdmin } from "../pages/PanelAdmin";
+import { AdminAcademias } from "../pages/admin/academias/AdminAcademias";
 
 import { AdminNoticias } from "../pages/admin/noticias/AdminNoticias";
 import { AdminEditarNoticia } from "../pages/admin/noticias/AdminEditarNoticia";
@@ -259,6 +260,17 @@ return ( <Routes>
   />
 
 {/* Administración */}
+<Route
+  path={ROUTES.ADMIN_ACADEMIAS}
+  element={
+    <AdminRoute>
+      <Layout>
+        <AdminAcademias />
+      </Layout>
+    </AdminRoute>
+  }
+/>
+
 <Route
   path={ROUTES.ADMIN}
   element={

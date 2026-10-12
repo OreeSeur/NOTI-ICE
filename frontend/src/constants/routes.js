@@ -19,6 +19,7 @@ export const ROUTES = Object.freeze({
   DOCUMENTOS_EDITAR: "/documentos/editar/:id",
   DOCUMENTO_DETALLE: "/documentos/:id",
   ADMIN: "/admin",
+  ADMIN_ACADEMIAS: "/admin/academias",
   ADMIN_NOTICIAS: "/admin/noticias",
   ADMIN_NOTICIAS_EDITAR: "/admin/noticias/editar/:id",
   ADMIN_EVENTOS: "/admin/eventos",
