@@ -19,8 +19,9 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-# DocumentosController escribe en ContentRootPath/uploads: crear antes y otorgar propiedad.
-ReadWritePaths=/opt/noti-ice/backend/uploads
+# Crear antes el directorio persistente con propietario notiice y modo 0700.
+# El binario permanece de solo lectura; los adjuntos sobreviven a las publicaciones.
+ReadWritePaths=/var/lib/noti-ice/uploads
 
 [Install]
 WantedBy=multi-user.target

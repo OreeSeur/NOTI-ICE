@@ -32,9 +32,12 @@
 5. Para una sola instancia, mantener los parametros de `Chatbot__Limits__*`,
    `OLLAMA_NUM_PARALLEL=1` y `OLLAMA_MAX_LOADED_MODELS=1`. Los limites del chatbot
    son locales al proceso; varias replicas requieren coordinacion adicional.
-6. `DocumentosController` guarda en `<ContentRootPath>/uploads`; la plantilla systemd
-   supone `/opt/noti-ice/backend/uploads`. Crear ese directorio, asegurar permisos
-   para el usuario `notiice` y respaldarlo de manera separada de la base de datos.
+6. `Storage__UploadsPath` define el directorio privado de adjuntos. La plantilla
+   utiliza `/var/lib/noti-ice/uploads`, fuera de los binarios del backend. Crear
+   la carpeta con permisos restringidos para `notiice` ANTES de iniciar el servicio;
+   los adjuntos nunca se sirven directamente por Nginx.
+   En Development, sin configuracion, se conserva `<ContentRootPath>/uploads`.
+   La ruta logica `/uploads/nombre` guardada en MySQL no cambia.
 7. La plantilla Nginx exige certificados ya emitidos. No habilitarla literalmente,
    pues `notiice.example.org` es ficticio. Elegir el tamano maximo de carga segun
    los limites existentes antes de configurar `client_max_body_size`.
@@ -63,3 +66,12 @@
 
 Estas plantillas no son una receta de despliegue automatico ni justifican contratar
 infraestructura. Los cambios solo deben integrarse a la rama estable tras revision.
+
+## Persistencia, respaldos y recuperacion
+
+- Consultar [BACKUPS_AND_RECOVERY.md](BACKUPS_AND_RECOVERY.md) antes de migrar
+  archivos o planificar una restauracion. Son instrucciones, no operaciones ejecutadas.
+- Los respaldos incluyen dos elementos: MySQL y el directorio privado de adjuntos.
+  Mantener copias externas cifradas; un respaldo solo en el mismo VPS no protege
+  contra la perdida completa del servidor.
+- Nunca migrar/restaurar sobre `portal_noticias` sin una autorizacion especifica.

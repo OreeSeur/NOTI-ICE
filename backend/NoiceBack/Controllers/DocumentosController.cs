@@ -16,7 +16,7 @@ namespace PortalNoticiasAPI.Controllers
     {
         private readonly PortalNoticiasContext _context;
         private readonly AudienciaAccesoService _audiencias;
-        private readonly IWebHostEnvironment _env;
+        private readonly string _uploadsPath;
         private readonly NotificacionCorreoService _notificaciones;
         private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -84,12 +84,28 @@ namespace PortalNoticiasAPI.Controllers
             PortalNoticiasContext context,
             IWebHostEnvironment env,
             NotificacionCorreoService notificaciones,
-            AudienciaAccesoService audiencias)
+            AudienciaAccesoService audiencias,
+            IConfiguration configuration)
         {
             _context = context;
             _audiencias = audiencias;
-            _env = env;
             _notificaciones = notificaciones;
+
+            // Desarrollo conserva la carpeta historica. Fuera de Development,
+            // exigir una ubicacion absoluta y persistente independiente del binario.
+            var configuredPath = configuration["Storage:UploadsPath"];
+            if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                if (!env.IsDevelopment())
+                    throw new InvalidOperationException("Storage:UploadsPath es obligatorio fuera de Development.");
+                _uploadsPath = Path.Combine(env.ContentRootPath, "uploads");
+            }
+            else
+            {
+                if (!Path.IsPathFullyQualified(configuredPath))
+                    throw new InvalidOperationException("Storage:UploadsPath debe ser una ruta absoluta.");
+                _uploadsPath = Path.GetFullPath(configuredPath);
+            }
         }
 
         // Identidad tomada del token (no del cuerpo de la petición, que el cliente podría falsear)
@@ -193,7 +209,7 @@ namespace PortalNoticiasAPI.Controllers
             if (nombre.Length == 0 || nombre != Path.GetFileName(nombre) ||
                 nombre.Contains('\\') || nombre.Contains('/')) return NotFound();
 
-            var rutaFisica = Path.Combine(_env.ContentRootPath, "uploads", nombre);
+            var rutaFisica = Path.Combine(_uploadsPath, nombre);
             if (!System.IO.File.Exists(rutaFisica)) return NotFound();
 
             var tipos = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
@@ -233,7 +249,7 @@ namespace PortalNoticiasAPI.Controllers
 
             if (tieneArchivo)
             {
-                var carpetaUploads = Path.Combine(_env.ContentRootPath, "uploads");
+                var carpetaUploads = _uploadsPath;
                 Directory.CreateDirectory(carpetaUploads);
 
                 var nombreUnico = $"{Guid.NewGuid()}_{Path.GetFileName(dto.Archivo!.FileName.Replace('\\', '/'))}";
@@ -302,7 +318,7 @@ namespace PortalNoticiasAPI.Controllers
 
             if (dto.Archivo != null && dto.Archivo.Length > 0)
             {
-                var carpetaUploads = Path.Combine(_env.ContentRootPath, "uploads");
+                var carpetaUploads = _uploadsPath;
                 Directory.CreateDirectory(carpetaUploads);
 
                 var nombreUnico = $"{Guid.NewGuid()}_{Path.GetFileName(dto.Archivo.FileName.Replace('\\', '/'))}";
