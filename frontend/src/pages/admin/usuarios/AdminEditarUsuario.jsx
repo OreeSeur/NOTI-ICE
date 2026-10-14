@@ -1,97 +1,71 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { UsuarioForm } from "../../../components/usuarios/UsuarioForm";
 import { useUsuarios } from "../../../context/usuarios/useUsuarios";
 import { useToast } from "../../../context/toast/useToast";
 import { ROUTES } from "../../../constants/routes";
-import { ROLES } from "../../../constants/roles";
 import { mismoId } from "../../../utils/id";
-import {
-  hasValidationErrors,
-  normalizeFormValues,
-  validateUsuario,
-} from "../../../utils/validation";
+import { validarUsuarioAdministrativo } from "../../../utils/adminUsuariosValidation";
+
+const FormularioEdicion = ({ usuario, editarUsuario }) => {
+  const navigate = useNavigate();
+  const { success, error } = useToast();
+  const [formulario, setFormulario] = useState({
+    nombre: usuario.nombre, correo: usuario.correo, boleta: usuario.boleta, rol: usuario.rol,
+  });
+  const [errores, setErrores] = useState({});
+  const [enviando, setEnviando] = useState(false);
+
+  const handleChange = ({ target }) => {
+    setFormulario((prev) => ({ ...prev, [target.name]: target.value }));
+    setErrores((prev) => ({ ...prev, [target.name]: "" }));
+  };
+  const handleSubmit = async (evento) => {
+    evento.preventDefault();
+    if (enviando) return;
+    const erroresFormulario = validarUsuarioAdministrativo(formulario, { edicion: true });
+    if (Object.keys(erroresFormulario).length) {
+      setErrores(erroresFormulario);
+      error("Revisa los datos del formulario.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      await editarUsuario(usuario.id, formulario);
+      success("Usuario actualizado en MySQL.");
+      navigate(ROUTES.ADMIN_USUARIOS);
+    } catch (fallo) {
+      error(fallo.message || "No se pudo actualizar el usuario.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <UsuarioForm formulario={formulario} handleChange={handleChange}
+      handleSubmit={handleSubmit} buttonText="Actualizar usuario"
+      errors={errores} enviando={enviando} edicion />
+  );
+};
 
 export const AdminEditarUsuario = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const { usuarios, editarUsuario, cargando, errorCarga } = useUsuarios();
+  const usuario = usuarios.find((dato) => mismoId(dato.id, id));
 
-  const { usuarios, editarUsuario } = useUsuarios();
-  const { success, error } = useToast();
-
-  const usuario = usuarios.find((u) => mismoId(u.id, id));
-
-  const [formulario, setFormulario] = useState(
-    usuario || {
-      nombre: "",
-      correo: "",
-      boleta: "",
-      carrera: "",
-      semestre: "",
-      rol: ROLES.ALUMNO,
-      estado: "activo",
-      password: "",
-    }
+  if (cargando) return <p role="status">Cargando usuario desde MySQL…</p>;
+  if (errorCarga) return <p role="alert" className="text-red-700">{errorCarga}</p>;
+  if (!usuario) return (
+    <section className="space-y-3">
+      <h2 className="text-xl font-bold text-red-600">Usuario no encontrado o desactivado.</h2>
+      <Link to={ROUTES.ADMIN_USUARIOS} className="text-[#6F1D46] underline">Volver a usuarios</Link>
+    </section>
   );
-  const [errors, setErrors] = useState({});
-
-  const handleChange = (e) => {
-    setFormulario({
-      ...formulario,
-      [e.target.name]: e.target.value,
-    });
-
-    if (errors[e.target.name]) {
-      setErrors({
-        ...errors,
-        [e.target.name]: "",
-      });
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    const datosNormalizados = normalizeFormValues(formulario);
-    const validationErrors = validateUsuario(datosNormalizados);
-
-    if (hasValidationErrors(validationErrors)) {
-      setErrors(validationErrors);
-      error("Revisa los campos marcados");
-      return;
-    }
-
-    try {
-      editarUsuario(id, datosNormalizados);
-      success("Usuario actualizado correctamente");
-      navigate(ROUTES.ADMIN_USUARIOS);
-    } catch (err) {
-      error(err.message || "Error al actualizar usuario");
-    }
-  };
-
-  if (!usuario) {
-    return (
-      <section>
-        <h2 className="text-red-600 font-bold text-xl">
-          Usuario no encontrado
-        </h2>
-      </section>
-    );
-  }
-
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-bold">Editar Usuario</h1>
-
-      <UsuarioForm
-        formulario={formulario}
-        handleChange={handleChange}
-        handleSubmit={handleSubmit}
-        buttonText="Actualizar Usuario"
-        errors={errors}
-      />
+      <h1 className="text-3xl font-bold">Editar usuario</h1>
+      <FormularioEdicion key={usuario.id} usuario={usuario} editarUsuario={editarUsuario} />
     </section>
   );
 };

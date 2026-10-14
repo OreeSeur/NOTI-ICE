@@ -1,77 +1,41 @@
 import { Link } from "react-router-dom";
-import { Pencil, Trash2 } from "lucide-react";
-
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { buildRoute, ROUTES } from "../../constants/routes";
 import { getRoleLabel, normalizeRole, ROLES } from "../../constants/roles";
 import { StatusBadge } from "../common/StatusBadge";
 
-const obtenerVarianteRol = (rol) => {
-  const rolNormalizado = normalizeRole(rol);
+const variante = (rol) => normalizeRole(rol) === ROLES.ADMIN ? "success" :
+  normalizeRole(rol) === ROLES.DOCENTE ? "primary" : "info";
 
-  if (rolNormalizado === ROLES.ADMIN) {
-    return "success";
-  }
-
-  if (rolNormalizado === ROLES.DOCENTE) {
-    return "primary";
-  }
-
-  return "info";
-};
-
-export const UsuarioCard = ({ usuario, onDelete }) => {
-  return (
-    <article className="rounded-xl bg-white p-4 shadow-md dark:bg-slate-800">
-      <div className="space-y-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-            {usuario.nombre || "Usuario sin nombre"}
-          </h3>
-
-          <StatusBadge
-            label={getRoleLabel(usuario.rol)}
-            variant={obtenerVarianteRol(usuario.rol)}
-          />
-        </div>
-
-        <p className="break-all text-slate-600 dark:text-slate-300">
-          {usuario.correo || usuario.email || "Sin correo"}
-        </p>
-
-        <p className="text-slate-600 dark:text-slate-300">
-          <span className="font-medium text-slate-800 dark:text-white">Boleta:</span>{" "}
-          {usuario.boleta || "-"}
-        </p>
-
-        <p className="text-slate-600 dark:text-slate-300">
-          <span className="font-medium text-slate-800 dark:text-white">Carrera:</span>{" "}
-          {usuario.carrera || "-"}
-        </p>
-
-        <p className="text-slate-600 dark:text-slate-300">
-          <span className="font-medium text-slate-800 dark:text-white">Semestre:</span>{" "}
-          {usuario.semestre || "-"}
-        </p>
+export const UsuarioCard = ({ usuario, onDelete, onRestore, inactivo = false }) => (
+  <article className="min-w-0 rounded-xl bg-white p-4 text-slate-900 shadow-md dark:bg-slate-800 dark:text-slate-100">
+    <div className="flex flex-col gap-2">
+      <h3 className="break-words font-bold [overflow-wrap:anywhere]">{usuario.nombre || "Sin nombre"}</h3>
+      <div className="flex flex-wrap gap-2">
+        <StatusBadge label={getRoleLabel(usuario.rol)} variant={variante(usuario.rol)} />
+        {inactivo && <StatusBadge label="Inactivo" variant="warning" />}
       </div>
-
-      <div className="mt-4 flex gap-3">
-        <Link
-          to={buildRoute(ROUTES.ADMIN_USUARIOS_EDITAR, { id: usuario.id })}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-100 py-2 text-blue-700 transition hover:bg-blue-200"
-        >
-          <Pencil size={18} />
-          Editar
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => onDelete(usuario)}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-red-100 py-2 text-red-700 transition hover:bg-red-200"
-        >
-          <Trash2 size={18} />
-          Eliminar
+      <p className="break-all text-slate-600 dark:text-slate-300">{usuario.correo}</p>
+      <p className="break-words text-sm [overflow-wrap:anywhere]">ID #{usuario.id} · Identificación: {usuario.boleta}</p>
+    </div>
+    <div className="mt-4 flex gap-3">
+      {inactivo ? (
+        <button type="button" onClick={() => onRestore(usuario)}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-100 p-2 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200">
+          <RotateCcw size={18} /> Reactivar
         </button>
-      </div>
-    </article>
-  );
-};
+      ) : (
+        <>
+          <Link to={buildRoute(ROUTES.ADMIN_USUARIOS_EDITAR, { id: usuario.id })}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-100 p-2 text-blue-700">
+            <Pencil size={18} /> Editar
+          </Link>
+          <button type="button" onClick={() => onDelete(usuario)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-100 p-2 text-red-700">
+            <Trash2 size={18} /> Desactivar
+          </button>
+        </>
+      )}
+    </div>
+  </article>
+);

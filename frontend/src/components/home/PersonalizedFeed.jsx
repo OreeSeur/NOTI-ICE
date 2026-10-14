@@ -46,8 +46,8 @@ export const PersonalizedFeed = () => {
   }
 
   return (
-    <section className="mb-8 rounded-2xl bg-white p-6 shadow-md dark:bg-slate-800">
-      <div className="mb-5 flex items-center justify-between gap-4">
+    <section className="mb-8 min-w-0 rounded-2xl bg-white p-6 shadow-md dark:bg-slate-800">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold text-slate-800 dark:text-white">
             <Sparkles className="text-[#6F1D46]" size={22} />
@@ -62,16 +62,16 @@ export const PersonalizedFeed = () => {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid min-w-0 gap-4 md:grid-cols-3">
         {recomendaciones.map((item) => (
-          <Link key={item.id} to={item.path} className="rounded-xl border border-slate-200 p-4 transition hover:border-[#6F1D46] hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50">
+          <Link key={item.id} to={item.path} className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-[#6F1D46] hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50">
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
               {item.label}
             </span>
-            <h3 className="mt-3 font-semibold text-slate-800 dark:text-white">
+            <h3 className="mt-3 break-words font-semibold text-slate-800 [overflow-wrap:anywhere] dark:text-white">
               {item.title}
             </h3>
-            <p className="mt-2 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-2 line-clamp-2 break-words text-sm text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400">
               {item.description}
             </p>
           </Link>

@@ -13,7 +13,7 @@ export const UsuariosFilters = ({
         <SearchInput
           value={busqueda}
           onChange={setBusqueda}
-          placeholder="Buscar por nombre, correo, boleta o carrera..."
+          placeholder="Buscar por nombre, correo o identificación..."
           className="md:flex-1 md:max-w-none"
         />
 

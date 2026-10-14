@@ -47,15 +47,15 @@ export const RoleBasedContent = () => {
           <Link
             key={item.id}
             to={item.path}
-            className="rounded-xl border border-slate-200 p-4 transition hover:border-[#6F1D46] hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
+            className="min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-[#6F1D46] hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
           >
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
               {item.label}
             </span>
-            <h3 className="mt-3 font-semibold text-slate-800 dark:text-white">
+            <h3 className="mt-3 break-words [overflow-wrap:anywhere] font-semibold text-slate-800 dark:text-white">
               {item.title}
             </h3>
-            <p className="mt-2 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-2 line-clamp-2 break-words [overflow-wrap:anywhere] text-sm text-slate-500 dark:text-slate-400">
               {item.description}
             </p>
           </Link>

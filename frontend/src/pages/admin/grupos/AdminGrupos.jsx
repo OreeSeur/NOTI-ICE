@@ -257,7 +257,33 @@ export const AdminGrupos = () => {
       ) : gruposFiltrados.length === 0 ? (
         <EmptyState title="No hay grupos para mostrar" message="Prueba con otra búsqueda o registra un grupo académico." />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <>
+          <div className="space-y-3 lg:hidden">
+            {gruposFiltrados.map((grupo) => (
+              <article key={grupo.idGrupo} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-xs font-bold uppercase tracking-wide text-[#6F1D46] dark:text-pink-300">Grupo #{grupo.idGrupo} · {grupo.grupoTipoNombre}</p>
+                <h3 className="break-words font-semibold [overflow-wrap:anywhere]">{grupo.materiaNombre}</h3>
+                <p className="break-words text-sm [overflow-wrap:anywhere]">Docente: {grupo.profesorNombre}</p>
+                <p className="break-words text-sm [overflow-wrap:anywhere]">{grupo.dias} · {horaParaCampo(grupo.horaInicio)}–{horaParaCampo(grupo.horaFin)}</p>
+                <p className="text-xs text-slate-500">{fechaParaCampo(grupo.fechaInicio)} a {fechaParaCampo(grupo.fechaFin)}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Link to={`${ROUTES.ADMIN_INSCRIPCIONES}?grupo=${grupo.idGrupo}`}
+                    className={`${clasesBotonCatalogo} bg-slate-100 text-slate-800 hover:bg-slate-200`}>
+                    <Users size={16} /> Alumnos
+                  </Link>
+                  <button type="button" onClick={() => abrirEdicion(grupo)} disabled={ocupado}
+                    className={`${clasesBotonCatalogo} bg-slate-100 text-slate-800 hover:bg-slate-200`}>
+                    <Pencil size={16} /> Editar
+                  </button>
+                  <button type="button" onClick={() => setGrupoEliminar(grupo)} disabled={ocupado}
+                    className={`${clasesBotonCatalogo} bg-red-50 text-red-700 hover:bg-red-100`}>
+                    <Trash2 size={16} /> Desactivar
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:block">
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead className="bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-white">
               <tr>
@@ -297,6 +323,7 @@ export const AdminGrupos = () => {
             </tbody>
           </table>
         </div>
+        </>
       )}
       <ConfirmModal isOpen={Boolean(grupoEliminar)} title="Desactivar grupo"
         message={`¿Deseas desactivar el grupo #${grupoEliminar?.idGrupo || ""}? No se permite desactivar grupos con alumnos inscritos.`}

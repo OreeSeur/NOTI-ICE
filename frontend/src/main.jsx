@@ -18,8 +18,8 @@ ReactDOM.createRoot(
   document.getElementById("root")
 ).render(
   <React.StrictMode>
-    <UsuariosProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <UsuariosProvider>
         <NoticiasProvider>
           <EventosProvider>
             <DocumentosProvider>
@@ -35,7 +35,7 @@ ReactDOM.createRoot(
             </DocumentosProvider>
           </EventosProvider>
         </NoticiasProvider>
-      </AuthProvider>
-    </UsuariosProvider>
+      </UsuariosProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

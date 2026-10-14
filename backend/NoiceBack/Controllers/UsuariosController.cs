@@ -35,6 +35,27 @@ namespace PortalNoticiasAPI.Controllers
             return Ok(usuarios);
         }
 
+        // Sólo administración; el listado general sigue exponiendo únicamente cuentas activas.
+        [HttpGet("inactivos")]
+        public async Task<ActionResult<IEnumerable<UsuarioDto>>> GetUsuariosInactivos()
+        {
+            var usuarios = await _context.Usuarios
+                .Where(u => !u.Activo)
+                .OrderBy(u => u.IdUsuario)
+                .Select(u => new UsuarioDto
+                {
+                    IdUsuario = u.IdUsuario,
+                    Nombre = u.Nombre,
+                    IdRol = u.IdRol,
+                    RolNombre = u.Rol!.Nombre,
+                    NoIdentificacion = u.NoIdentificacion,
+                    Correo = u.Correo,
+                    Activo = u.Activo
+                })
+                .ToListAsync();
+            return Ok(usuarios);
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<UsuarioDto>> GetUsuario(int id)
         {
@@ -66,13 +87,23 @@ namespace PortalNoticiasAPI.Controllers
             if (string.IsNullOrWhiteSpace(identificacion) || identificacion.Length > 30)
                 return BadRequest(new { mensaje = "El número de identificación debe contener entre 1 y 30 caracteres" });
 
-            var identificacionExiste = await _context.Usuarios.AnyAsync(u => u.NoIdentificacion == identificacion);
-            if (identificacionExiste)
-                return BadRequest(new { mensaje = "Ya existe un usuario con ese número de identificación" });
+            var identificacionExistente = await _context.Usuarios
+                .Where(u => u.NoIdentificacion == identificacion)
+                .Select(u => new { u.Activo })
+                .FirstOrDefaultAsync();
+            if (identificacionExistente != null)
+                return Conflict(new { mensaje = identificacionExistente.Activo
+                    ? "Ya existe un usuario activo con ese número de identificación."
+                    : "La identificación pertenece a una cuenta inactiva. Reactívala desde Administración de usuarios." });
 
-            var correoExiste = await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo);
-            if (correoExiste)
-                return BadRequest(new { mensaje = "Ya existe un usuario con ese correo" });
+            var correoExistente = await _context.Usuarios
+                .Where(u => u.Correo == dto.Correo)
+                .Select(u => new { u.Activo })
+                .FirstOrDefaultAsync();
+            if (correoExistente != null)
+                return Conflict(new { mensaje = correoExistente.Activo
+                    ? "Ya existe un usuario activo con ese correo."
+                    : "El correo pertenece a una cuenta inactiva. Reactívala desde Administración de usuarios." });
 
             var rolExiste = await _context.NombreRoles.AnyAsync(r => r.IdRol == dto.IdRol && r.Activo);
             if (!rolExiste)
@@ -111,10 +142,44 @@ namespace PortalNoticiasAPI.Controllers
             if (usuario == null || !usuario.Activo)
                 return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
 
-            usuario.Nombre = dto.Nombre;
-            usuario.IdRol = dto.IdRol;
-            usuario.Correo = dto.Correo;
+            if (string.IsNullOrWhiteSpace(dto.Nombre) || string.IsNullOrWhiteSpace(dto.Correo))
+                return BadRequest(new { mensaje = "El nombre y el correo son obligatorios." });
 
+            var rolValido = await _context.NombreRoles.AnyAsync(r => r.IdRol == dto.IdRol && r.Activo);
+            if (!rolValido)
+                return BadRequest(new { mensaje = "El rol indicado no existe o está inactivo." });
+
+            if (await _context.Usuarios.AnyAsync(u => u.IdUsuario != id && u.Correo == dto.Correo))
+                return Conflict(new { mensaje = "Ese correo ya pertenece a otra cuenta. No puede reutilizarse." });
+
+            usuario.Nombre = dto.Nombre.Trim();
+            usuario.IdRol = dto.IdRol;
+            usuario.Correo = dto.Correo.Trim();
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Reactivación lógica: se conserva el ID, la contraseña y las relaciones académicas.
+        [HttpPut("{id}/reactivar")]
+        public async Task<IActionResult> ReactivarUsuario(int id)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null)
+                return NotFound(new { mensaje = "No existe el usuario solicitado." });
+            if (usuario.Activo)
+                return Conflict(new { mensaje = "El usuario ya está activo." });
+
+            var rolActivo = await _context.NombreRoles.AnyAsync(r => r.IdRol == usuario.IdRol && r.Activo);
+            if (!rolActivo)
+                return Conflict(new { mensaje = "No puede reactivarse: el rol asociado está inactivo." });
+
+            var conflicto = await _context.Usuarios.AnyAsync(u => u.IdUsuario != id && u.Activo &&
+                (u.Correo == usuario.Correo || u.NoIdentificacion == usuario.NoIdentificacion));
+            if (conflicto)
+                return Conflict(new { mensaje = "La cuenta no puede reactivarse porque su correo o identificación ya está en uso." });
+
+            usuario.Activo = true;
             await _context.SaveChangesAsync();
             return NoContent();
         }
