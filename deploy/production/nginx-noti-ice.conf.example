@@ -27,7 +27,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_read_timeout 180s; # Ollama puede necesitar hasta 150 s en la API
         proxy_send_timeout 180s;
-        # Definir client_max_body_size segun los limites de adjuntos comprobados.
+        # La API admite 20 MiB por archivo; dejar margen para el cuerpo multipart.
+        client_max_body_size 25m;
     }
 
     # No publicar directamente los adjuntos; requiere autorizacion en la API.

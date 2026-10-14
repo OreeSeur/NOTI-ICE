@@ -39,8 +39,24 @@
    En Development, sin configuracion, se conserva `<ContentRootPath>/uploads`.
    La ruta logica `/uploads/nombre` guardada en MySQL no cambia.
 7. La plantilla Nginx exige certificados ya emitidos. No habilitarla literalmente,
-   pues `notiice.example.org` es ficticio. Elegir el tamano maximo de carga segun
-   los limites existentes antes de configurar `client_max_body_size`.
+   pues `notiice.example.org` es ficticio. La ruta `/api/` usa
+   `client_max_body_size 25m`: margen sobre el limite de 20 MiB por archivo para
+   incluir el cuerpo multipart. Esto no aumenta el limite validado por la API.
+
+## Cargas y correo pendientes de configurar en el servidor
+
+- Antes de desplegar, confirmar los limites HTTP de Nginx, Kestrel y el proveedor.
+  Una solicitud mayor a 25 MiB sera rechazada por Nginx con HTTP 413.
+- `Frontend__BaseUrl`: origen HTTPS publico del frontend sin barra final, para
+  enlaces de recuperacion de contrasena y avisos por correo.
+- SMTP: definir privadamente `Email__Host`, `Email__Port`, `Email__UseSsl`,
+  `Email__User`, `Email__Password`, `Email__From` y `Email__FromName`.
+  En el puerto 587, `Email__UseSsl=true` requiere STARTTLS del proveedor.
+- Sin SMTP operativo, el portal puede seguir funcionando, pero los correos de
+  recuperacion y notificacion no se entregan. La API de recuperacion devuelve
+  una respuesta generica para no revelar si existe una cuenta: no implica envio.
+- Verificar conectividad saliente y entrega de un correo de prueba solo cuando
+  se autorice el entorno. Nunca guardar credenciales en Git o en las plantillas.
 
 ## Aspectos de compatibilidad
 
