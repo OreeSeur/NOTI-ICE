@@ -51,8 +51,15 @@ namespace PortalNoticiasAPI.Controllers
             if (rol == null || !rol.Activo)
                 return NotFound(new { mensaje = $"No se encontró el rol con id {id}" });
 
-            rol.Nombre = dto.Nombre;
-            await _context.SaveChangesAsync();
+            if (rol.Nombre != dto.Nombre)
+            {
+                await using var transaccion = await _context.Database.BeginTransactionAsync();
+                rol.Nombre = dto.Nombre;
+                await _context.Usuarios.Where(u => u.IdRol == id).ExecuteUpdateAsync(
+                    cambios => cambios.SetProperty(u => u.VersionSesion, u => u.VersionSesion + 1));
+                await _context.SaveChangesAsync();
+                await transaccion.CommitAsync();
+            }
             return NoContent();
         }
 
@@ -63,8 +70,12 @@ namespace PortalNoticiasAPI.Controllers
             if (rol == null || !rol.Activo)
                 return NotFound(new { mensaje = $"No se encontró el rol con id {id}" });
 
+            await using var transaccion = await _context.Database.BeginTransactionAsync();
             rol.Activo = false;
+            await _context.Usuarios.Where(u => u.IdRol == id).ExecuteUpdateAsync(
+                cambios => cambios.SetProperty(u => u.VersionSesion, u => u.VersionSesion + 1));
             await _context.SaveChangesAsync();
+            await transaccion.CommitAsync();
             return NoContent();
         }
     }

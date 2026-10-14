@@ -48,6 +48,7 @@ namespace PortalNoticiasAPI.Data
                 e.Property(x => x.Contrasena).HasColumnName("Contrasena").IsRequired();
                 e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
                 e.Property(x => x.Activo).HasColumnName("Activo");
+                e.Property(x => x.VersionSesion).HasColumnName("VersionSesion").HasDefaultValue(1);
                 e.Property(x => x.Carrera).HasColumnName("Carrera");
                 e.Property(x => x.Semestre).HasColumnName("Semestre");
 

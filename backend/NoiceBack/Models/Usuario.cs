@@ -13,6 +13,8 @@ namespace PortalNoticiasAPI.Models
         public string Contrasena { get; set; } = string.Empty;
         public DateTime FechaAlta { get; set; }
         public bool Activo { get; set; }
+        // Revocacion permanente de tokens anteriores a cambios sensibles de la cuenta.
+        public int VersionSesion { get; set; } = 1;
 
         // Datos académicos (solo aplican a los alumnos; para el resto quedan en null)
         public string? Carrera { get; set; }

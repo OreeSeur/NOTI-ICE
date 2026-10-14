@@ -97,6 +97,39 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<NotificacionCorreoService>();
 
+// Revalidar cada JWT contra el estado y rol ACTUALES en MySQL.
+// PostConfigure agrega este evento sin reemplazar los eventos existentes del esquema Bearer.
+builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.Events ??= new JwtBearerEvents();
+    options.Events.OnTokenValidated = async context =>
+    {
+        var identidad = context.Principal;
+        var idTexto = identidad?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var rolDelToken = identidad?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var versionTexto = identidad?.FindFirst(TokenService.VersionClaim)?.Value;
+
+        if (!int.TryParse(idTexto, out var idUsuario) || string.IsNullOrWhiteSpace(rolDelToken) ||
+            !int.TryParse(versionTexto, out var versionToken) || versionToken < 1)
+        {
+            context.Fail("El token no contiene una identidad y un rol válidos.");
+            return;
+        }
+
+        var db = context.HttpContext.RequestServices.GetRequiredService<PortalNoticiasContext>();
+        var cuentaActual = await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdUsuario == idUsuario && u.Activo && u.Rol != null && u.Rol.Activo)
+            .Select(u => new { RolNombre = u.Rol!.Nombre, u.VersionSesion })
+            .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+        if (cuentaActual == null || cuentaActual.VersionSesion != versionToken ||
+            !string.Equals(cuentaActual.RolNombre, rolDelToken, StringComparison.Ordinal))
+        {
+            context.Fail("La sesion fue revocada, la cuenta esta inactiva o su rol cambio. Inicia sesion nuevamente.");
+        }
+    };
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

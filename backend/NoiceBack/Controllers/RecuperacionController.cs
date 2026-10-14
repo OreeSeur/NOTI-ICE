@@ -114,6 +114,7 @@ namespace PortalNoticiasAPI.Controllers
                 return BadRequest(new { mensaje = enlaceInvalido });
 
             usuario.Contrasena = BCrypt.Net.BCrypt.HashPassword(dto.NuevaContrasena);
+            usuario.VersionSesion++; // invalida todas las sesiones previas a cambiar la clave
             usuario.TokenRecuperacionHash = null;      // un solo uso
             usuario.TokenRecuperacionExpira = null;
             await _context.SaveChangesAsync();

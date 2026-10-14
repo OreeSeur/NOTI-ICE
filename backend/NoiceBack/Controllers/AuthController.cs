@@ -65,7 +65,8 @@ namespace PortalNoticiasAPI.Controllers
         {
             var usuario = await _context.Usuarios
                 .Include(u => u.Rol)
-                .FirstOrDefaultAsync(u => u.Correo == dto.Correo && u.Activo);
+                .FirstOrDefaultAsync(u => u.Correo == dto.Correo && u.Activo &&
+                    u.Rol != null && u.Rol.Activo);
 
             if (usuario == null)
                 return Unauthorized(new { mensaje = "Correo o contraseña incorrectos" });

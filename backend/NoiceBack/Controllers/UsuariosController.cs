@@ -152,9 +152,14 @@ namespace PortalNoticiasAPI.Controllers
             if (await _context.Usuarios.AnyAsync(u => u.IdUsuario != id && u.Correo == dto.Correo))
                 return Conflict(new { mensaje = "Ese correo ya pertenece a otra cuenta. No puede reutilizarse." });
 
+            var nuevoCorreo = dto.Correo.Trim();
+            if (usuario.IdRol != dto.IdRol ||
+                !string.Equals(usuario.Correo, nuevoCorreo, StringComparison.Ordinal))
+                usuario.VersionSesion++;
+
             usuario.Nombre = dto.Nombre.Trim();
             usuario.IdRol = dto.IdRol;
-            usuario.Correo = dto.Correo.Trim();
+            usuario.Correo = nuevoCorreo;
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -180,6 +185,7 @@ namespace PortalNoticiasAPI.Controllers
                 return Conflict(new { mensaje = "La cuenta no puede reactivarse porque su correo o identificación ya está en uso." });
 
             usuario.Activo = true;
+            usuario.VersionSesion++;
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -192,6 +198,7 @@ namespace PortalNoticiasAPI.Controllers
                 return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
 
             usuario.Activo = false;
+            usuario.VersionSesion++;
             await _context.SaveChangesAsync();
             return NoContent();
         }

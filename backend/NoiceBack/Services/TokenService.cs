@@ -8,6 +8,7 @@ namespace PortalNoticiasAPI.Services
 {
     public class TokenService
     {
+        public const string VersionClaim = "noti_ice_version_sesion";
         private readonly IConfiguration _config;
 
         public TokenService(IConfiguration config)
@@ -24,7 +25,8 @@ namespace PortalNoticiasAPI.Services
                 new Claim(ClaimTypes.NameIdentifier, usuario.IdUsuario.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Nombre),
                 new Claim(ClaimTypes.Email, usuario.Correo),
-                new Claim(ClaimTypes.Role, rolNombre) // esto habilita [Authorize(Roles = "Administrador")]
+                new Claim(ClaimTypes.Role, rolNombre), // esto habilita [Authorize(Roles = "Administrador")]
+                new Claim(VersionClaim, usuario.VersionSesion.ToString(System.Globalization.CultureInfo.InvariantCulture))
             };
 
             var llave = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
