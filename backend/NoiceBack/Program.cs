@@ -17,6 +17,7 @@ builder.Services.AddDbContext<PortalNoticiasContext>(options =>
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddChatbotLimits(builder.Configuration);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -145,5 +146,6 @@ app.UseCors("FrontendPolicy");
 // y se valida contra la audiencia de cada documento.
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 app.Run();
