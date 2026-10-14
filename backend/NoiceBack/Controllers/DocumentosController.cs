@@ -61,6 +61,25 @@ namespace PortalNoticiasAPI.Controllers
             }
         }
 
+        // No confiar en el atributo type=url del formulario: la API recibe solicitudes directas.
+        // Solo se admiten enlaces web absolutos; no aceptar javascript:, data:, file: ni credenciales.
+        private static bool TryValidarUrl(string? valor, out string? enlace)
+        {
+            enlace = null;
+            if (string.IsNullOrWhiteSpace(valor)) return true; // Archivo sin enlace externo
+
+            var normalizado = valor.Trim();
+            if (normalizado.Length > 2048 || valor.Any(char.IsControl) ||
+                normalizado.Any(char.IsWhiteSpace) || normalizado.Contains('\\') ||
+                !Uri.TryCreate(normalizado, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo))
+                return false;
+
+            enlace = normalizado;
+            return true;
+        }
+
         public DocumentosController(
             PortalNoticiasContext context,
             IWebHostEnvironment env,
@@ -200,6 +219,9 @@ namespace PortalNoticiasAPI.Controllers
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
 
+            if (!TryValidarUrl(dto.Url, out var enlaceValidado))
+                return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });
+
             if (dto.Archivo is not null)
             {
                 var errorArchivo = await ValidadorArchivoDocumento.ValidarAsync(dto.Archivo, HttpContext.RequestAborted);
@@ -233,7 +255,7 @@ namespace PortalNoticiasAPI.Controllers
                 Descripcion = dto.Descripcion,
                 TipoDocumento = dto.TipoDocumento,
                 RutaArchivo = rutaArchivo,
-                Url = dto.Url,
+                Url = enlaceValidado,
                 FechaPublicacion = dto.FechaPublicacion ?? DateTime.Now,
                 Prioridad = string.IsNullOrWhiteSpace(audiencia.Prioridad) ? "normal" : audiencia.Prioridad,
                 AudienciaJson = JsonSerializer.Serialize(audiencia, JsonOpts),
@@ -268,6 +290,9 @@ namespace PortalNoticiasAPI.Controllers
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
 
+            if (!TryValidarUrl(dto.Url, out var enlaceValidado))
+                return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });
+
             if (dto.Archivo is not null)
             {
                 var errorArchivo = await ValidadorArchivoDocumento.ValidarAsync(dto.Archivo, HttpContext.RequestAborted);
@@ -294,7 +319,7 @@ namespace PortalNoticiasAPI.Controllers
             documento.DocumentoNombre = dto.Titulo;
             documento.Descripcion = dto.Descripcion;
             documento.TipoDocumento = dto.TipoDocumento;
-            documento.Url = dto.Url;
+            documento.Url = enlaceValidado;
             documento.FechaPublicacion = dto.FechaPublicacion ?? documento.FechaPublicacion;
             documento.Prioridad = string.IsNullOrWhiteSpace(audiencia.Prioridad) ? "normal" : audiencia.Prioridad;
             documento.AudienciaJson = JsonSerializer.Serialize(audiencia, JsonOpts);

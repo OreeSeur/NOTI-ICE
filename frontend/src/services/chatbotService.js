@@ -1,3 +1,5 @@
+import { post } from "../api/apiClient";
+import { isMockDataSource } from "../config/appConfig";
 import { canReceiveItem } from "../utils/audience";
 import { getDocumentTitle } from "../utils/documentTypes";
 import { normalizeSearchText } from "../utils/search";
@@ -262,5 +264,9 @@ const generarRespuesta = (pregunta, { user, noticias = [], eventos = [], documen
 
 // Punto único de entrada. Es asíncrona a propósito: así, cuando se conecte el
 // backend con Ollama, el componente no necesita cambios.
-export const responderPregunta = async (pregunta, contexto) =>
-  generarRespuesta(pregunta, contexto);
+// En modo API, el navegador pregunta al backend; nunca se conecta a Ollama.
+// El modo mock conserva las respuestas de demostracion existentes.
+export const responderPregunta = async (pregunta, contexto) => {
+  if (isMockDataSource()) return generarRespuesta(pregunta, contexto);
+  return post("/chatbot", { pregunta });
+};

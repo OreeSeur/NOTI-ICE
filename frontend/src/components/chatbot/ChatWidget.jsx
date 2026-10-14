@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Bot, MessageCircle, Send, X } from "lucide-react";
 
 import { useAuth } from "../../context/auth/useAuth";
+import { isMockDataSource } from "../../config/appConfig";
 import { useNoticias } from "../../context/noticias/useNoticias";
 import { useEventos } from "../../context/eventos/useEventos";
 import { useDocumentos } from "../../context/documentos/useDocumentos";
@@ -95,13 +96,14 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
           className="
             fixed
             bottom-20
-            right-4
+            right-2
+            sm:right-4
             z-50
             flex
-            h-[30rem]
-            max-h-[calc(100vh-6.5rem)]
-            w-[calc(100vw-2rem)]
-            max-w-sm
+            h-[33rem]
+            max-h-[calc(100dvh-6rem)]
+            w-[calc(100vw-1rem)]
+            max-w-[440px]
             flex-col
             overflow-hidden
             rounded-2xl
@@ -113,7 +115,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
             dark:bg-slate-800
           "
         >
-          <header className="flex items-center gap-3 bg-[#6F1D46] px-4 py-3 text-white">
+          <header className="flex shrink-0 items-center gap-3 bg-[#6F1D46] px-4 py-3 text-white">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15">
               <Bot size={20} aria-hidden="true" />
             </span>
@@ -133,24 +135,25 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
             </button>
           </header>
 
-          <p className="bg-amber-50 px-4 py-1.5 text-[11px] leading-snug text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-            Prototipo de demostración: responde con el contenido publicado, sin
-            inteligencia artificial todavía.
+          <p className="shrink-0 bg-amber-50 px-4 py-1.5 text-[11px] leading-snug text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            {isMockDataSource()
+              ? "Prototipo de demostración: respuestas mediante reglas, sin inteligencia artificial."
+              : "Asistente con inteligencia artificial: consulta publicaciones autorizadas de NOTI ICE."}
           </p>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
+          <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto p-4" aria-live="polite">
             {mensajes.map((mensaje) =>
               mensaje.rol === "usuario" ? (
                 <div
                   key={mensaje.id}
-                  className="ml-auto max-w-[85%] break-words rounded-2xl rounded-br-md bg-[#6F1D46] px-3 py-2 text-sm text-white"
+                  className="ml-auto max-w-[92%] break-words [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-[#6F1D46] px-3 py-2 text-sm text-white"
                 >
                   {mensaje.texto}
                 </div>
               ) : (
                 <div
                   key={mensaje.id}
-                  className="max-w-[88%] break-words rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-700 dark:text-slate-100"
+                  className="max-w-[95%] break-words [overflow-wrap:anywhere] rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                 >
                   <p>{mensaje.texto}</p>
 
@@ -160,7 +163,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
                         <li key={enlace.clave}>
                           <Link
                             to={enlace.ruta}
-                            className="block rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs transition hover:border-[#6F1D46] dark:border-slate-600 dark:bg-slate-800 dark:hover:border-pink-200"
+                            className="block min-w-0 max-w-full break-words [overflow-wrap:anywhere] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs transition hover:border-[#6F1D46] dark:border-slate-600 dark:bg-slate-800 dark:hover:border-pink-200"
                           >
                             <span className="font-semibold text-[#6F1D46] dark:text-pink-200">
                               {enlace.tipo}
@@ -201,14 +204,14 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
             <div ref={finMensajes} />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto px-4 pb-2">
+          <div className="flex shrink-0 flex-wrap gap-2 px-4 pb-3">
             {SUGERENCIAS.map((sugerencia) => (
               <button
                 key={sugerencia}
                 type="button"
                 onClick={() => enviar(sugerencia)}
                 disabled={escribiendo}
-                className="shrink-0 rounded-full border border-[#6F1D46]/40 px-3 py-1 text-xs text-[#6F1D46] transition hover:bg-[#6F1D46]/10 disabled:opacity-50 dark:border-pink-200/40 dark:text-pink-200 dark:hover:bg-pink-200/10"
+                className="min-w-0 rounded-full border border-[#6F1D46]/40 px-3 py-1 text-left text-xs leading-snug text-[#6F1D46] transition hover:bg-[#6F1D46]/10 disabled:opacity-50 dark:border-pink-200/40 dark:text-pink-200 dark:hover:bg-pink-200/10"
               >
                 {sugerencia}
               </button>
@@ -217,7 +220,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
 
           <form
             onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-slate-200 p-3 dark:border-slate-700"
+            className="flex shrink-0 items-center gap-2 border-t border-slate-200 p-3 dark:border-slate-700"
           >
             <input
               type="text"
