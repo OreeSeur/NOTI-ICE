@@ -1,0 +1,40 @@
+# PLANTILLA: sustituir el dominio y disponer de certificados ANTES de activar Nginx.
+# Pensada para frontend React compilado y API .NET 8 en el mismo VPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name notiice.example.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name notiice.example.org;
+
+    ssl_certificate /etc/letsencrypt/live/notiice.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/notiice.example.org/privkey.pem;
+
+    root /var/www/noti-ice;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:5135;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 180s; # Ollama puede necesitar hasta 150 s en la API
+        proxy_send_timeout 180s;
+        # Definir client_max_body_size segun los limites de adjuntos comprobados.
+    }
+
+    # No publicar directamente los adjuntos; requiere autorizacion en la API.
+    location ^~ /uploads/ { return 404; }
+
+    # React Router: entregar index.html cuando la ruta no corresponda a un archivo.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

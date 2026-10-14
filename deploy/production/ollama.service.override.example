@@ -1,0 +1,6 @@
+# Referencia para un override del servicio ollama, si el paquete instalado lo incluye.
+# Ejecutar en el servidor solo con autorizacion: systemctl edit ollama
+[Service]
+Environment="OLLAMA_HOST=127.0.0.1:11434"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"

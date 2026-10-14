@@ -1,0 +1,26 @@
+# PLANTILLA: no habilitar antes de crear usuario, directorios y archivo privado.
+# Instalar como /etc/systemd/system/noti-ice-api.service solo tras revisar rutas.
+[Unit]
+Description=NOTI ICE ASP.NET Core 8 API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=notiice
+Group=notiice
+WorkingDirectory=/opt/noti-ice/backend
+EnvironmentFile=/etc/noti-ice/api.env
+ExecStart=/usr/bin/dotnet /opt/noti-ice/backend/NoiceBack.dll
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# DocumentosController escribe en ContentRootPath/uploads: crear antes y otorgar propiedad.
+ReadWritePaths=/opt/noti-ice/backend/uploads
+
+[Install]
+WantedBy=multi-user.target

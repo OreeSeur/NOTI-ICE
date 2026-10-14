@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PortalNoticiasAPI.Data;
 using PortalNoticiasAPI.Services;
+using System.Net;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -84,11 +86,45 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Confiar solo en las cabeceras reenviadas por Nginx local u otros proxies explicitos.
+// Una lista vacia no significa confiar en cualquier proxy.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+    options.KnownProxies.Add(IPAddress.Loopback);
+    options.KnownProxies.Add(IPAddress.IPv6Loopback);
+
+    foreach (var ipTexto in builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (!IPAddress.TryParse(ipTexto, out var ip))
+            throw new InvalidOperationException("ReverseProxy:KnownProxies requiere direcciones IP validas.");
+        options.KnownProxies.Add(ip);
+    }
+});
+
+// En produccion, sin origenes configurados, se deniegan solicitudes CORS externas.
+// Las peticiones del mismo origen funcionan sin habilitar CORS.
+var origenesCors = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (origenesCors.Length == 0 && builder.Environment.IsDevelopment())
+    origenesCors = ["http://localhost:5173"];
+
+foreach (var origen in origenesCors)
+{
+    if (!Uri.TryCreate(origen, UriKind.Absolute, out var uri) ||
+        (uri.Scheme != Uri.UriSchemeHttps &&
+         !(builder.Environment.IsDevelopment() && uri.Scheme == Uri.UriSchemeHttp)) ||
+        !string.Equals(origen, uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Cors:AllowedOrigins requiere origenes HTTPS completos sin rutas ni comodines (HTTP solo en Development).");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // el puerto donde corre tu Vite
+        policy.WithOrigins(origenesCors)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -140,6 +176,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Antes de HTTPS, CORS, JWT y los controladores.
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseCors("FrontendPolicy");
 // No publicar /uploads como archivos estáticos: la descarga pasa por la API
