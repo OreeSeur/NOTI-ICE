@@ -20,6 +20,47 @@ namespace PortalNoticiasAPI.Controllers
         private readonly NotificacionCorreoService _notificaciones;
         private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
+        // Nunca convertir silenciosamente una audiencia mal formada en "todos".
+        // La web envia siempre roles, carreras y semestres como listas no vacias.
+        private static bool TryLeerAudiencia(string? audienciaJson, out AudienciaDto audiencia)
+        {
+            audiencia = new AudienciaDto();
+            if (string.IsNullOrWhiteSpace(audienciaJson)) return false;
+
+            try
+            {
+                using var documento = JsonDocument.Parse(audienciaJson);
+                if (documento.RootElement.ValueKind != JsonValueKind.Object) return false;
+
+                var propiedades = documento.RootElement.EnumerateObject().ToArray();
+                foreach (var nombre in new[] { "roles", "carreras", "semestres" })
+                {
+                    var coincidencias = propiedades
+                        .Where(p => p.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                    if (coincidencias.Length != 1 || coincidencias[0].Value.ValueKind != JsonValueKind.Array)
+                        return false;
+
+                    var valores = coincidencias[0].Value.EnumerateArray().ToArray();
+                    if (valores.Length == 0 || valores.Any(v => v.ValueKind != JsonValueKind.String ||
+                                                         string.IsNullOrWhiteSpace(v.GetString())))
+                        return false;
+                }
+
+                var leida = JsonSerializer.Deserialize<AudienciaDto>(audienciaJson, JsonOpts);
+                if (leida?.Roles is not { Count: > 0 } ||
+                    leida.Carreras is not { Count: > 0 } ||
+                    leida.Semestres is not { Count: > 0 }) return false;
+
+                audiencia = leida;
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
         public DocumentosController(
             PortalNoticiasContext context,
             IWebHostEnvironment env,
@@ -156,6 +197,16 @@ namespace PortalNoticiasAPI.Controllers
             if (!tieneArchivo && !tieneUrl)
                 return BadRequest(new { mensaje = "Debes adjuntar un archivo o proporcionar un enlace" });
 
+            if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
+                return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
+
+            if (dto.Archivo is not null)
+            {
+                var errorArchivo = await ValidadorArchivoDocumento.ValidarAsync(dto.Archivo, HttpContext.RequestAborted);
+                if (errorArchivo is not null)
+                    return BadRequest(new { mensaje = errorArchivo });
+            }
+
             string? rutaArchivo = null;
 
             if (tieneArchivo)
@@ -172,18 +223,6 @@ namespace PortalNoticiasAPI.Controllers
                 }
 
                 rutaArchivo = $"/uploads/{nombreUnico}";
-            }
-
-            AudienciaDto audiencia;
-            try
-            {
-                audiencia = string.IsNullOrWhiteSpace(dto.AudienciaJson)
-                    ? new AudienciaDto()
-                    : JsonSerializer.Deserialize<AudienciaDto>(dto.AudienciaJson, JsonOpts) ?? new AudienciaDto();
-            }
-            catch
-            {
-                audiencia = new AudienciaDto();
             }
 
             var documento = new NoticiaDocumento
@@ -226,6 +265,16 @@ namespace PortalNoticiasAPI.Controllers
             if (!PuedeModificar(documento))
                 return StatusCode(403, new { mensaje = "Solo puedes modificar los documentos que tú publicaste" });
 
+            if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
+                return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
+
+            if (dto.Archivo is not null)
+            {
+                var errorArchivo = await ValidadorArchivoDocumento.ValidarAsync(dto.Archivo, HttpContext.RequestAborted);
+                if (errorArchivo is not null)
+                    return BadRequest(new { mensaje = errorArchivo });
+            }
+
             if (dto.Archivo != null && dto.Archivo.Length > 0)
             {
                 var carpetaUploads = Path.Combine(_env.ContentRootPath, "uploads");
@@ -240,18 +289,6 @@ namespace PortalNoticiasAPI.Controllers
                 }
 
                 documento.RutaArchivo = $"/uploads/{nombreUnico}";
-            }
-
-            AudienciaDto audiencia;
-            try
-            {
-                audiencia = string.IsNullOrWhiteSpace(dto.AudienciaJson)
-                    ? new AudienciaDto()
-                    : JsonSerializer.Deserialize<AudienciaDto>(dto.AudienciaJson, JsonOpts) ?? new AudienciaDto();
-            }
-            catch
-            {
-                audiencia = new AudienciaDto();
             }
 
             documento.DocumentoNombre = dto.Titulo;
