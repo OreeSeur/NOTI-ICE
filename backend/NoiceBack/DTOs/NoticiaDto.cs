@@ -11,6 +11,8 @@ namespace PortalNoticiasAPI.DTOs
         public List<string> Carreras { get; set; } = new() { "todos" };
         public List<string> Semestres { get; set; } = new() { "todos" };
         public List<string> Categorias { get; set; } = new() { "todos" };
+        // Si no se seleccionan grupos, se conserva el comportamiento general anterior.
+        public List<int> Grupos { get; set; } = new();
         public string Prioridad { get; set; } = "normal";
     }
 

@@ -183,10 +183,17 @@ namespace PortalNoticiasAPI.Controllers
             return Ok(ToDto(documento));
         }
 
-        private bool PuedeVerDocumento(NoticiaDocumento d, Usuario? usuario) =>
-            _audiencias.PuedeVer(d.AudienciaJson, usuario) &&
-            (!d.IdNoticia.HasValue || (d.Noticia is { Activo: true } noticia &&
-                _audiencias.PuedeVer(noticia.AudienciaJson, usuario)));
+        // El autor autenticado puede consultar sus documentos independientes,
+        // aunque esten dirigidos a otro rol. El resto conserva el filtro de audiencia.
+        private bool PuedeVerDocumento(NoticiaDocumento d, Usuario? usuario)
+        {
+            if (usuario is not null && !d.IdNoticia.HasValue && d.IdUsuario == usuario.IdUsuario)
+                return true;
+
+            return _audiencias.PuedeVer(d.AudienciaJson, usuario) &&
+                (!d.IdNoticia.HasValue || (d.Noticia is { Activo: true } noticia &&
+                    _audiencias.PuedeVer(noticia.AudienciaJson, usuario)));
+        }
 
         // Descarga protegida. No entregar nunca los adjuntos desde /uploads.
         [HttpGet("{id}/archivo")]
@@ -234,6 +241,8 @@ namespace PortalNoticiasAPI.Controllers
 
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
+                return BadRequest(new { mensaje = "No puedes destinar documentos a esos grupos." });
 
             if (!TryValidarUrl(dto.Url, out var enlaceValidado))
                 return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });
@@ -305,6 +314,8 @@ namespace PortalNoticiasAPI.Controllers
 
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
+                return BadRequest(new { mensaje = "No puedes destinar documentos a esos grupos." });
 
             if (!TryValidarUrl(dto.Url, out var enlaceValidado))
                 return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });

@@ -13,8 +13,42 @@ namespace PortalNoticiasAPI.Services
     public sealed class AudienciaAccesoService
     {
         private readonly PortalNoticiasContext _context;
+        private HashSet<int> _gruposValidos = new();
 
         public AudienciaAccesoService(PortalNoticiasContext context) => _context = context;
+
+        // Se utiliza tanto en GET de publicaciones como al enviar correos.
+        public async Task PrepararGruposAsync(Usuario? usuario)
+        {
+            _gruposValidos.Clear();
+            if (usuario == null) return;
+
+            if (usuario.Rol?.Nombre == "Alumno")
+                _gruposValidos = (await _context.GruposAlumnos.AsNoTracking()
+                    .Where(i => i.IdUsuario == usuario.IdUsuario && i.Activo &&
+                                i.Grupo != null && i.Grupo.Activo)
+                    .Select(i => i.IdGrupo).ToListAsync()).ToHashSet();
+            else if (usuario.Rol?.Nombre == "Docente")
+                _gruposValidos = (await _context.Grupos.AsNoTracking()
+                    .Where(g => g.IdUsuario == usuario.IdUsuario && g.Activo)
+                    .Select(g => g.IdGrupo).ToListAsync()).ToHashSet();
+        }
+
+        public async Task<bool> PuedePublicarParaGruposAsync(ClaimsPrincipal principal, List<int>? grupos)
+        {
+            if (grupos == null || grupos.Count > 30 || grupos.Any(id => id <= 0) ||
+                grupos.Distinct().Count() != grupos.Count) return false;
+            if (grupos.Count == 0) return true;
+            var id = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(id, out var idAutor)) return false;
+            var esAdministrador = principal.IsInRole("Administrador");
+            var permitidos = await _context.Grupos.AsNoTracking()
+                .Where(g => grupos.Contains(g.IdGrupo) && g.Activo &&
+                            g.Materia != null && g.Materia.Activo &&
+                            (esAdministrador || g.IdUsuario == idAutor))
+                .Select(g => g.IdGrupo).CountAsync();
+            return permitidos == grupos.Count;
+        }
 
         public async Task<Usuario?> UsuarioActualAsync(ClaimsPrincipal principal)
         {
@@ -24,8 +58,10 @@ namespace PortalNoticiasAPI.Services
 
             // Consultar perfil y rol actual en BD evita confiar en datos académicos aportados
             // por el cliente o roles desactualizados incluidos en el token.
-            return await _context.Usuarios.Include(u => u.Rol)
+            var usuario = await _context.Usuarios.Include(u => u.Rol)
                 .FirstOrDefaultAsync(u => u.IdUsuario == id && u.Activo && u.Rol != null && u.Rol.Activo);
+            await PrepararGruposAsync(usuario);
+            return usuario;
         }
 
         public bool PuedeVer(string? audienciaJson, Usuario? usuario)
@@ -43,7 +79,12 @@ namespace PortalNoticiasAPI.Services
                 var roles = Valores(documento.RootElement, "roles");
                 var carreras = Valores(documento.RootElement, "carreras");
                 var semestres = Valores(documento.RootElement, "semestres");
-                if (roles == null || carreras == null || semestres == null) return false;
+                var grupos = GruposDestino(documento.RootElement);
+                if (roles == null || carreras == null || semestres == null || grupos == null) return false;
+
+                // El grupo se verifica antes de permitir un contenido general.
+                if (grupos.Count > 0 && (usuario == null || !grupos.Any(_gruposValidos.Contains)))
+                    return false;
 
                 // Publicación general disponible sin autenticación.
                 if (EsGeneral(roles) && EsGeneral(carreras) && EsGeneral(semestres)) return true;
@@ -65,6 +106,21 @@ namespace PortalNoticiasAPI.Services
                 // JSON corrupto nunca debe convertirse en publicación pública.
                 return false;
             }
+        }
+
+        private static List<int>? GruposDestino(JsonElement root)
+        {
+            var campos = root.EnumerateObject()
+                .Where(p => p.Name.Equals("grupos", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (campos.Length == 0) return new List<int>();
+            if (campos.Length != 1 || campos[0].Value.ValueKind != JsonValueKind.Array) return null;
+            var ids = new List<int>();
+            foreach (var valor in campos[0].Value.EnumerateArray())
+            {
+                if (valor.ValueKind != JsonValueKind.Number || !valor.TryGetInt32(out var id) || id <= 0 || ids.Contains(id)) return null;
+                ids.Add(id);
+            }
+            return ids.Count <= 30 ? ids : null;
         }
 
         private static List<string>? Valores(JsonElement root, string nombre)

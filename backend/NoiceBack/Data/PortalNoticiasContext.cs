@@ -21,13 +21,31 @@ namespace PortalNoticiasAPI.Data
         public DbSet<GrupoTipo> GruposTipos { get; set; }
         public DbSet<Grupo> Grupos { get; set; }
         public DbSet<GrupoAlumno> GruposAlumnos { get; set; }
+        public DbSet<UsuarioPreferencia> UsuariosPreferencias { get; set; }
+        public DbSet<NotificacionLeida> NotificacionesLeidas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<UsuarioPreferencia>(e =>
+            {
+                e.ToTable("usuariospreferencias");
+                e.HasKey(x => x.IdUsuario);
+                e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
+                e.Property(x => x.DatosJson).HasColumnName("DatosJson").HasColumnType("json").IsRequired();
+            });
+            modelBuilder.Entity<NotificacionLeida>(e =>
+            {
+                e.ToTable("notificacionesleidas");
+                e.HasKey(x => new { x.IdUsuario, x.Clave });
+                e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
+                e.Property(x => x.Clave).HasColumnName("Clave").HasMaxLength(100).IsRequired();
+                e.Property(x => x.FechaLectura).HasColumnName("FechaLectura");
+            });
+
             // ---------- NombreRol ----------
             modelBuilder.Entity<NombreRol>(e =>
             {
-                e.ToTable("NombreRol");
+                e.ToTable("nombrerol");
                 e.HasKey(x => x.IdRol);
                 e.Property(x => x.IdRol).HasColumnName("idRol");
                 e.Property(x => x.Nombre).HasColumnName("NombreRol").IsRequired();
@@ -38,7 +56,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Usuario ----------
             modelBuilder.Entity<Usuario>(e =>
             {
-                e.ToTable("Usuarios");
+                e.ToTable("usuarios");
                 e.HasKey(x => x.IdUsuario);
                 e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
                 e.Property(x => x.Nombre).HasColumnName("Nombre").IsRequired();
@@ -60,7 +78,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Categoria ----------
             modelBuilder.Entity<Categoria>(e =>
             {
-                e.ToTable("Categorias");
+                e.ToTable("categorias");
                 e.HasKey(x => x.IdCategoria);
                 e.Property(x => x.IdCategoria).HasColumnName("idCategoria");
                 e.Property(x => x.CategoriaNombre).HasColumnName("CategoriaNombre").IsRequired();
@@ -72,7 +90,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Noticia ----------
             modelBuilder.Entity<Noticia>(e =>
             {
-                e.ToTable("Noticias");
+                e.ToTable("noticias");
                 e.HasKey(x => x.IdNoticia);
                 e.Property(x => x.IdNoticia).HasColumnName("idNoticia");
                 e.Property(x => x.Titulo).HasColumnName("Titulo").IsRequired();
@@ -98,7 +116,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- NoticiaDocumento ----------
             modelBuilder.Entity<NoticiaDocumento>(e =>
             {
-                e.ToTable("NoticiasDocumentos");
+                e.ToTable("noticiasdocumentos");
                 e.HasKey(x => x.IdNoticiaDocumento);
                 e.Property(x => x.IdNoticiaDocumento).HasColumnName("idNoticiaDocumento");
                 e.Property(x => x.IdNoticia).HasColumnName("idNoticia");
@@ -127,7 +145,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Comentario ----------
             modelBuilder.Entity<Comentario>(e =>
             {
-                e.ToTable("Comentarios");
+                e.ToTable("comentarios");
                 e.HasKey(x => x.IdComentario);
                 e.Property(x => x.IdComentario).HasColumnName("idComentario");
                 e.Property(x => x.ComentarioTexto).HasColumnName("Comentario").IsRequired();
@@ -144,7 +162,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- NoticiaComentario (puente) ----------
             modelBuilder.Entity<NoticiaComentario>(e =>
             {
-                e.ToTable("NoticiasComentarios");
+                e.ToTable("noticiascomentarios");
                 e.HasKey(x => x.IdNoticiaComentario);
                 e.Property(x => x.IdNoticiaComentario).HasColumnName("idNoticiaComentario");
                 e.Property(x => x.IdNoticia).HasColumnName("idNoticia");
@@ -164,7 +182,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Evento ----------
             modelBuilder.Entity<Evento>(e =>
             {
-                e.ToTable("Eventos");
+                e.ToTable("eventos");
                 e.HasKey(x => x.IdEvento);
                 e.Property(x => x.IdEvento).HasColumnName("idEvento");
                 e.Property(x => x.Titulo).HasColumnName("Titulo").IsRequired();
@@ -195,7 +213,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Academia ----------
             modelBuilder.Entity<Academia>(e =>
             {
-                e.ToTable("Academias");
+                e.ToTable("academias");
                 e.HasKey(x => x.IdAcademia);
                 e.Property(x => x.IdAcademia).HasColumnName("idAcademia");
                 e.Property(x => x.Nombre).HasColumnName("Nombre").IsRequired();
@@ -207,7 +225,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Materia ----------
             modelBuilder.Entity<Materia>(e =>
             {
-                e.ToTable("Materias");
+                e.ToTable("materias");
                 e.HasKey(x => x.IdMateria);
                 e.Property(x => x.IdMateria).HasColumnName("idMateria");
                 e.Property(x => x.IdAcademia).HasColumnName("idAcademia");
@@ -224,7 +242,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- GrupoTipo ----------
             modelBuilder.Entity<GrupoTipo>(e =>
             {
-                e.ToTable("GruposTipos");
+                e.ToTable("grupostipos");
                 e.HasKey(x => x.IdGrupoTipo);
                 e.Property(x => x.IdGrupoTipo).HasColumnName("idGrupoTipo");
                 e.Property(x => x.Tipo).HasColumnName("GrupoTipo").IsRequired();
@@ -235,7 +253,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- Grupo ----------
             modelBuilder.Entity<Grupo>(e =>
             {
-                e.ToTable("Grupos");
+                e.ToTable("grupos");
                 e.HasKey(x => x.IdGrupo);
                 e.Property(x => x.IdGrupo).HasColumnName("idGrupo");
                 e.Property(x => x.IdMateria).HasColumnName("idMateria");
@@ -265,7 +283,7 @@ namespace PortalNoticiasAPI.Data
             // ---------- GrupoAlumno (puente) ----------
             modelBuilder.Entity<GrupoAlumno>(e =>
             {
-                e.ToTable("GruposAlumnos");
+                e.ToTable("gruposalumnos");
                 e.HasKey(x => x.IdGrupoAlumno);
                 e.Property(x => x.IdGrupoAlumno).HasColumnName("idGrupoAlumno");
                 e.Property(x => x.IdGrupo).HasColumnName("idGrupo");

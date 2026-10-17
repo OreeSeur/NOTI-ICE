@@ -36,9 +36,25 @@ export const Perfil = () => {
     semestre: String(user?.semestre ?? "").match(/\d+/)?.[0] ?? "",
   }));
   const [guardando, setGuardando] = useState(false);
-  const [subscriptions, setSubscriptions] = useState(() =>
-    normalizeSubscriptions(user?.subscriptions)
+  // El borrador se reinicia solo cuando llegan nuevas preferencias desde MySQL.
+  // No sincronizar estado local con setState dentro de un useEffect.
+  const [subscriptionDraft, setSubscriptionDraft] = useState(null);
+  const baseSubscriptions = useMemo(
+    () => normalizeSubscriptions(user?.subscriptions),
+    [user?.subscriptions]
   );
+  const subscriptions = subscriptionDraft?.source === user?.subscriptions
+    ? subscriptionDraft.value
+    : baseSubscriptions;
+  const setSubscriptions = (updater) => {
+    setSubscriptionDraft((prev) => {
+      const actual = prev?.source === user?.subscriptions ? prev.value : baseSubscriptions;
+      return {
+        source: user?.subscriptions,
+        value: typeof updater === "function" ? updater(actual) : updater,
+      };
+    });
+  };
 
   const recomendaciones = useMemo(
     () =>

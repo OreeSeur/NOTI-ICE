@@ -17,18 +17,17 @@ import { useAuth } from "../../context/auth/useAuth";
 import { useNoticias } from "../../context/noticias/useNoticias";
 import { useEventos } from "../../context/eventos/useEventos";
 import { useDocumentos } from "../../context/documentos/useDocumentos";
+import { useLecturas } from "../../context/notificaciones/LecturasContext";
 import { PRIORITY_OPTIONS } from "../../constants/audience";
 import { normalizeSearchText } from "../../utils/search";
 import {
   buildNotificationItems,
   getNotificationId,
   getNotificationStats,
-  getReadNotificationIds,
   isNotificationUnread,
   markNotificationAsRead,
   markNotificationAsUnread,
   markNotificationsAsRead,
-  saveReadNotificationIds,
 } from "../../utils/notifications";
 
 const TYPE_FILTERS = [
@@ -78,7 +77,7 @@ export const Notificaciones = () => {
   const [typeFilter, setTypeFilter] = useState("todas");
   const [statusFilter, setStatusFilter] = useState("todas");
   const [priorityFilter, setPriorityFilter] = useState("todas");
-  const [readIds, setReadIds] = useState(() => getReadNotificationIds(user));
+  const { readIds, guardarLecturas, errorLecturas } = useLecturas();
 
   const notificationItems = useMemo(
     () => buildNotificationItems({ noticias, eventos, documentos, user }),
@@ -110,8 +109,9 @@ export const Notificaciones = () => {
   }, [notificationItems, priorityFilter, readIds, search, statusFilter, typeFilter]);
 
   const updateReadIds = (ids) => {
-    setReadIds(ids);
-    saveReadNotificationIds(ids, user);
+    guardarLecturas(ids).catch(() => {
+      // El proveedor restablece el estado si el servidor rechaza los cambios.
+    });
   };
 
   const handleMarkAllRead = () => {
@@ -151,6 +151,7 @@ export const Notificaciones = () => {
               Consulta noticias, eventos y documentos relevantes según tu rol,
               carrera, semestre y preferencias.
             </p>
+            {errorLecturas && <p role="alert" className="mt-2 text-sm text-red-600">{errorLecturas}</p>}
           </div>
 
           <button

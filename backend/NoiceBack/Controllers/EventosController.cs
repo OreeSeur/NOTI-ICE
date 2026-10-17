@@ -36,6 +36,11 @@ namespace PortalNoticiasAPI.Controllers
         private bool PuedeModificar(Evento e) =>
             User.IsInRole("Administrador") || e.IdUsuario == GetUserId();
 
+        // El autor autenticado puede consultar sus propios eventos.
+        private bool PuedeVerEvento(Evento e, Usuario? usuario) =>
+            (usuario is not null && e.IdUsuario == usuario.IdUsuario) ||
+            _audiencias.PuedeVer(e.AudienciaJson, usuario);
+
         private static EventoDto ToDto(Evento e)
         {
             AudienciaDto audiencia;
@@ -79,7 +84,7 @@ namespace PortalNoticiasAPI.Controllers
                 .ToListAsync();
 
             var usuario = await _audiencias.UsuarioActualAsync(User);
-            return Ok(eventos.Where(e => _audiencias.PuedeVer(e.AudienciaJson, usuario))
+            return Ok(eventos.Where(e => PuedeVerEvento(e, usuario))
                 .Select(ToDto).ToList());
         }
 
@@ -94,7 +99,7 @@ namespace PortalNoticiasAPI.Controllers
                 return NotFound(new { mensaje = $"No se encontró el evento con id {id}" });
 
             var usuario = await _audiencias.UsuarioActualAsync(User);
-            if (!_audiencias.PuedeVer(evento.AudienciaJson, usuario)) return NotFound();
+            if (!PuedeVerEvento(evento, usuario)) return NotFound();
 
             return Ok(ToDto(evento));
         }
@@ -115,6 +120,8 @@ namespace PortalNoticiasAPI.Controllers
                 return BadRequest(new { mensaje = "La fecha de fin no puede ser anterior a la fecha de inicio" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
+                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
 
             var evento = new Evento
             {
@@ -156,6 +163,8 @@ namespace PortalNoticiasAPI.Controllers
                 return StatusCode(403, new { mensaje = "Solo puedes modificar los eventos que tú publicaste" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
+                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
 
             evento.Titulo = dto.Titulo;
             evento.Descripcion = dto.Descripcion;

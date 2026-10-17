@@ -64,6 +64,10 @@ public sealed class ChatbotController : ControllerBase
     [EnableRateLimiting(ChatbotUserRateLimitPolicy.PolicyName)]
     public async Task<ActionResult<RespuestaChatDto>> Consultar([FromBody] PreguntaChatDto? solicitud)
     {
+        if (!_config.GetValue("Chatbot:Enabled", true))
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { mensaje = "El asistente no esta disponible en esta version de prueba.", codigo = "chatbot_disabled" });
+
         var pregunta = solicitud?.Pregunta?.Trim() ?? "";
         if (pregunta.Length is < 2 or > 500)
             return BadRequest(new { mensaje = "La pregunta debe tener entre 2 y 500 caracteres." });

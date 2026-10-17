@@ -6,6 +6,7 @@ import { AudienceSummary } from "../../components/common/AudienceSummary";
 import { EmptyState } from "../../components/common/EmptyState";
 import { StatusBadge } from "../../components/common/StatusBadge";
 import { useNoticias } from "../../context/noticias/useNoticias";
+import { ComentariosNoticia } from "../../components/news/ComentariosNoticia";
 import {
   getItemAudience,
   getPriorityLabel,
@@ -96,6 +97,7 @@ export const NoticiaDetalle = () => {
           </aside>
         </div>
       </article>
+      <ComentariosNoticia idNoticia={noticia.id} />
     </section>
   );
 };

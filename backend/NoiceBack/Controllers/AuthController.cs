@@ -61,6 +61,7 @@ namespace PortalNoticiasAPI.Controllers
 
         // POST: api/auth/login
         [HttpPost("login")]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth-publico")]
         public async Task<ActionResult<LoginResponseDto>> Login(LoginRequestDto dto)
         {
             var usuario = await _context.Usuarios
@@ -83,6 +84,7 @@ namespace PortalNoticiasAPI.Controllers
         // POST: api/auth/register
         // Público (no requiere estar logueado). Siempre crea el usuario con rol "Alumno".
         [HttpPost("register")]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth-publico")]
         public async Task<ActionResult<LoginResponseDto>> Register(RegisterDto dto)
         {
             var errorAcademico = ValidarAcademico(dto.Carrera, dto.Semestre, obligatorios: true);

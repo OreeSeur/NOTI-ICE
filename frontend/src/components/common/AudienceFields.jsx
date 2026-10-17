@@ -1,4 +1,8 @@
+import { useEffect, useState } from "react";
 import { Target } from "lucide-react";
+import { get } from "../../api/apiClient";
+import { useAuth } from "../../context/auth/useAuth";
+import { isMockDataSource } from "../../config/appConfig";
 
 import { getAudienceSelectOptions, normalizeAudience } from "../../utils/audience";
 import { AUDIENCE_ALL_VALUE } from "../../constants/audience";
@@ -49,6 +53,21 @@ const CheckboxGroup = ({ title, description, values, field, items, onChange }) =
 
 export const AudienceFields = ({ audiencia, onChange }) => {
   const normalizedAudience = normalizeAudience(audiencia);
+  const { user } = useAuth();
+  const [grupos, setGrupos] = useState([]);
+  const [errorGrupos, setErrorGrupos] = useState("");
+  useEffect(() => {
+    if (isMockDataSource()) return;
+    let vivo = true;
+    get("/grupos")
+      .then((datos) => {
+        if (!vivo) return;
+        const todos = Array.isArray(datos) ? datos : [];
+        setGrupos(user?.rol === "Administrador" ? todos : todos.filter(g => g.idUsuario === user?.id));
+      })
+      .catch(() => { if (vivo) setErrorGrupos("No se pudieron consultar los grupos oficiales."); });
+    return () => { vivo = false; };
+  }, [user?.id, user?.rol]);
 
   return (
     <section className="rounded-2xl border border-[#6F1D46]/20 bg-[#6F1D46]/5 p-4 dark:border-pink-300/20 dark:bg-pink-300/5 sm:p-5">
@@ -102,6 +121,22 @@ export const AudienceFields = ({ audiencia, onChange }) => {
           items={options.categorias}
           onChange={onChange}
         />
+      </div>
+
+      <div className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+        <h4 className="font-semibold text-slate-800 dark:text-white">Grupos oficiales (opcional)</h4>
+        <p className="mb-3 text-xs text-slate-500">Sin grupos seleccionados, se aplica la audiencia general. Al elegir uno, solo sus alumnos inscritos y docente responsable podrán ver el contenido.</p>
+        {errorGrupos && <p role="alert" className="text-sm text-red-600">{errorGrupos}</p>}
+        <div className="grid max-h-44 gap-2 overflow-y-auto sm:grid-cols-2">
+          {grupos.map((g) => <label key={g.idGrupo} className="flex items-center gap-2 text-sm dark:text-slate-200">
+            <input type="checkbox" checked={normalizedAudience.grupos.includes(g.idGrupo)}
+              onChange={(e) => onChange("grupos", e.target.checked
+                ? [...normalizedAudience.grupos, g.idGrupo]
+                : normalizedAudience.grupos.filter(id => id !== g.idGrupo))}
+              className="h-4 w-4 accent-[#6F1D46]" />
+            {g.materiaNombre} · {g.grupoTipoNombre}
+          </label>)}
+        </div>
       </div>
 
       <div className="mt-4 max-w-sm">

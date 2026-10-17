@@ -73,6 +73,7 @@ namespace PortalNoticiasAPI.Services
                 var enviados = 0;
                 foreach (var destinatario in candidatos)
                 {
+                    await acceso.PrepararGruposAsync(destinatario);
                     if (!acceso.PuedeVer(audienciaJson, destinatario)) continue;
 
                     try

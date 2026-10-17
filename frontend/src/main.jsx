@@ -6,6 +6,7 @@ import App from "./App";
 import "./index.css";
 
 import { AuthProvider } from "./context/auth/AuthProvider";
+import { LecturasProvider } from "./context/notificaciones/LecturasProvider";
 import { UsuariosProvider } from "./context/usuarios/UsuariosProvider";
 import { NoticiasProvider } from "./context/noticias/NoticiasProvider";
 import { EventosProvider } from "./context/eventos/EventosProvider";
@@ -19,6 +20,7 @@ ReactDOM.createRoot(
 ).render(
   <React.StrictMode>
     <AuthProvider>
+      <LecturasProvider>
       <UsuariosProvider>
         <NoticiasProvider>
           <EventosProvider>
@@ -36,6 +38,7 @@ ReactDOM.createRoot(
           </EventosProvider>
         </NoticiasProvider>
       </UsuariosProvider>
+      </LecturasProvider>
     </AuthProvider>
   </React.StrictMode>
 );

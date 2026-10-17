@@ -11,6 +11,7 @@ import {
 import { hasRole, canAccessAdmin } from "../../utils/permissions";
 import { normalizeSubscriptions } from "../../constants/subscriptions";
 import { normalizeAcademicProfile } from "../../utils/academicProfile";
+import { obtenerPreferenciasPortal, guardarPreferenciasPortal } from "../../services/preferenciasPortalService";
 import { AuthContext } from "./AuthContext";
 
 export const AuthProvider = ({ children }) => {
@@ -31,6 +32,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     guardarSesion(user);
   }, [user]);
+
+  // Recuperar las preferencias al reabrir la aplicación o cambiar de cuenta.
+  useEffect(() => {
+    if (!user?.id) return;
+    let activo = true;
+    const id = user.id;
+    obtenerPreferenciasPortal()
+      .then((preferencias) => {
+        if (activo) setUser((actual) => actual?.id === id
+          ? { ...actual, subscriptions: normalizeSubscriptions(preferencias) } : actual);
+      })
+      .catch(() => { /* El resto del portal sigue funcionando si el servicio está caído. */ });
+    return () => { activo = false; };
+  }, [user?.id]);
 
   // Ahora es asíncrono porque llama al backend real.
   // Devuelve { ok: true } o { ok: false, mensaje } en vez de solo true/false,
@@ -61,9 +76,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Nombre, carrera y semestre se guardan en el backend (PUT /api/auth/perfil).
-  // Las preferencias de suscripción y el perfil académico siguen siendo locales
-  // (solo de esta sesión). Lanza un error si el servidor rechaza los datos.
+  // Los datos personales y las preferencias de temas se guardan en MySQL.
+  // El perfil académico local heredado se conserva solo para la demostración mock.
   const updateUserProfile = useCallback(
     async (datosActualizados) => {
       if (!user) return null;
@@ -82,6 +96,10 @@ export const AuthProvider = ({ children }) => {
           carrera: datosActualizados.carrera ?? user.carrera,
           semestre: datosActualizados.semestre ?? user.semestre,
         });
+      }
+
+      if ("subscriptions" in datosActualizados) {
+        await guardarPreferenciasPortal(normalizeSubscriptions(datosActualizados.subscriptions));
       }
 
       const usuarioActualizado = {

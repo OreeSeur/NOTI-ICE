@@ -69,6 +69,13 @@ namespace PortalNoticiasAPI.DTOs
         public string? AlumnoNombre { get; set; }
     }
 
+    // Un alumno solo envía el grupo: su identidad SIEMPRE sale del JWT.
+    public class AutoInscripcionDto
+    {
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un grupo válido.")]
+        public int IdGrupo { get; set; }
+    }
+
     public class GrupoAlumnoCreateDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un grupo válido.")]

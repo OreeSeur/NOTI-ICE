@@ -1,11 +1,12 @@
 import { AppRouter } from "./routes/AppRouter";
 import { ChatWidget } from "./components/chatbot/ChatWidget";
+import { appConfig } from "./config/appConfig";
 
 function App() {
   return (
     <>
       <AppRouter />
-      <ChatWidget />
+      {appConfig.chatbotEnabled && <ChatWidget />}
     </>
   );
 }

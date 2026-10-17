@@ -12,6 +12,8 @@ export const appConfig = Object.freeze({
   dataSource: normalizeDataSource(import.meta.env.VITE_DATA_SOURCE),
   apiUrl: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
   authTokenKey: import.meta.env.VITE_AUTH_TOKEN_KEY || "noti_ice_auth_token",
+  // Vite incorpora este valor al compilar. Ocultar la interfaz no sustituye el bloqueo en la API.
+  chatbotEnabled: import.meta.env.VITE_CHATBOT_ENABLED !== "false",
 });
 
 export const isMockDataSource = () => appConfig.dataSource === DATA_SOURCES.MOCK;

@@ -51,5 +51,6 @@ export const DEFAULT_AUDIENCE = Object.freeze({
   carreras: [AUDIENCE_ALL_VALUE],
   semestres: [AUDIENCE_ALL_VALUE],
   categorias: [AUDIENCE_ALL_VALUE],
+  grupos: [], // Vacío = publicación sin restricción por grupo.
   prioridad: "normal",
 });

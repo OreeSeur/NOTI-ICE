@@ -242,6 +242,70 @@ namespace PortalNoticiasAPI.Controllers
             return Ok(alumnos);
         }
 
+        // Inscripción propia: el cliente no puede decidir a qué usuario inscribir.
+        [HttpPost("inscribir-me")]
+        [Authorize(Roles = "Alumno")]
+        public async Task<ActionResult<GrupoAlumnoDto>> AutoInscribir(AutoInscripcionDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idAlumno))
+                return Unauthorized(new { mensaje = "Sesión no válida." });
+
+            var grupo = await _context.Grupos.AsNoTracking()
+                .Where(g => g.IdGrupo == dto.IdGrupo && g.Activo && g.Materia != null && g.Materia.Activo)
+                .Select(g => new { g.IdMateria })
+                .FirstOrDefaultAsync();
+            if (grupo == null)
+                return NotFound(new { mensaje = "El grupo o la materia no están disponibles." });
+
+            // Una materia no puede inscribirse en dos grupos distintos a la vez.
+            var otraInscripcion = await _context.GruposAlumnos.AnyAsync(ga =>
+                ga.IdUsuario == idAlumno && ga.Activo &&
+                ga.Grupo != null && ga.Grupo.Activo &&
+                ga.Grupo.IdMateria == grupo.IdMateria && ga.IdGrupo != dto.IdGrupo);
+            if (otraInscripcion)
+                return Conflict(new { mensaje = "Ya estás inscrito en otro grupo de esta materia." });
+
+            var existente = await _context.GruposAlumnos.FirstOrDefaultAsync(ga =>
+                ga.IdUsuario == idAlumno && ga.IdGrupo == dto.IdGrupo);
+            if (existente?.Activo == true)
+                return Conflict(new { mensaje = "Ya estás inscrito en este grupo." });
+
+            var inscripcion = existente ?? new GrupoAlumno
+            {
+                IdUsuario = idAlumno,
+                IdGrupo = dto.IdGrupo,
+                FechaAlta = DateTime.UtcNow
+            };
+            inscripcion.Activo = true;
+            if (existente == null) _context.GruposAlumnos.Add(inscripcion);
+            await _context.SaveChangesAsync();
+
+            return Ok(new GrupoAlumnoDto
+            {
+                IdGrupoAlumno = inscripcion.IdGrupoAlumno,
+                IdGrupo = inscripcion.IdGrupo,
+                IdUsuario = idAlumno
+            });
+        }
+
+        // Solo se desactiva la inscripción perteneciente al alumno autenticado.
+        [HttpDelete("desinscribir-me/{idGrupo:int}")]
+        [Authorize(Roles = "Alumno")]
+        public async Task<IActionResult> AutoDesinscribir(int idGrupo)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idAlumno))
+                return Unauthorized(new { mensaje = "Sesión no válida." });
+
+            var inscripcion = await _context.GruposAlumnos.FirstOrDefaultAsync(ga =>
+                ga.IdUsuario == idAlumno && ga.IdGrupo == idGrupo && ga.Activo);
+            if (inscripcion == null)
+                return NotFound(new { mensaje = "No se encontró una inscripción activa de tu cuenta." });
+
+            inscripcion.Activo = false;
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpPost("inscribir")]
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<GrupoAlumnoDto>> InscribirAlumno(GrupoAlumnoCreateDto dto)

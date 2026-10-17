@@ -19,12 +19,11 @@ import { ROUTES } from "../../constants/routes";
 import { getRoleLabel } from "../../constants/roles";
 import { getDocumentTitle } from "../../utils/documentTypes";
 import { canReceiveItem } from "../../utils/audience";
+import { useLecturas } from "../../context/notificaciones/LecturasContext";
 import {
   buildNotificationItems,
   getNotificationId,
-  getReadNotificationIds,
   markNotificationsAsRead,
-  saveReadNotificationIds,
 } from "../../utils/notifications";
 
 export const Topbar = ({
@@ -43,9 +42,7 @@ export const Topbar = ({
   const [search, setSearch] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [readNotificationIds, setReadNotificationIds] = useState(() =>
-    getReadNotificationIds(user)
-  );
+  const { readIds: readNotificationIds, guardarLecturas } = useLecturas();
 
   const resultados = [
     ...noticias.filter((item) => canReceiveItem(item, user)).map((item) => ({
@@ -92,8 +89,9 @@ export const Topbar = ({
           notificationItems
         );
 
-        setReadNotificationIds(updatedIds);
-        saveReadNotificationIds(updatedIds, user);
+        guardarLecturas(updatedIds).catch(() => {
+          // El proveedor muestra el error de persistencia.
+        });
       }
 
       return nextValue;

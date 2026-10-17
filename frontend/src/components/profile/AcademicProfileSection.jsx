@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MisInscripcionesOficiales } from "./MisInscripcionesOficiales";
+import { AutoInscripcionesOficiales } from "./AutoInscripcionesOficiales";
+import { MisGruposDocentes } from "./MisGruposDocentes";
+import { isMockDataSource } from "../../config/appConfig";
 import {
   ClipboardList,
   GraduationCap,
@@ -680,16 +683,19 @@ export const AcademicProfileSection = ({ user, onSaveAcademicProfile }) => {
   const role = normalizeRole(user?.rol);
 
   if (role === ROLES.ALUMNO) {
-    return (
+    // Conservar la pantalla anterior solo cuando se use explícitamente el modo mock.
+    return isMockDataSource() ? (
       <>
         <MisInscripcionesOficiales />
         <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />
       </>
-    );
+    ) : <AutoInscripcionesOficiales />;
   }
 
   if (role === ROLES.DOCENTE) {
-    return <DocenteAcademicProfile user={user} />;
+    return isMockDataSource()
+      ? <DocenteAcademicProfile user={user} />
+      : <MisGruposDocentes />;
   }
 
   if (role === ROLES.ADMIN) {

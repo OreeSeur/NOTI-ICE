@@ -37,6 +37,9 @@ export const normalizeAudience = (audiencia = {}) => ({
   carreras: unique(ensureArray(audiencia.carreras)),
   semestres: unique(ensureArray(audiencia.semestres)),
   categorias: unique(ensureArray(audiencia.categorias)),
+  grupos: Array.isArray(audiencia.grupos)
+    ? [...new Set(audiencia.grupos.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))]
+    : [],
   prioridad: audiencia.prioridad || DEFAULT_AUDIENCE.prioridad,
 });
 

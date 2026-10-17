@@ -46,6 +46,7 @@ namespace PortalNoticiasAPI.Controllers
         // POST: api/auth/olvide-contrasena
         // Responde siempre lo mismo, exista o no la cuenta, para no revelar qué correos están registrados.
         [HttpPost("olvide-contrasena")]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth-publico")]
         public async Task<IActionResult> OlvideContrasena(OlvideContrasenaDto dto)
         {
             var respuesta = new { mensaje = "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña." };
@@ -89,6 +90,7 @@ namespace PortalNoticiasAPI.Controllers
 
         // POST: api/auth/restablecer-contrasena
         [HttpPost("restablecer-contrasena")]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth-publico")]
         public async Task<IActionResult> RestablecerContrasena(RestablecerContrasenaDto dto)
         {
             const string enlaceInvalido = "El enlace no es válido o ya venció. Solicita uno nuevo.";
