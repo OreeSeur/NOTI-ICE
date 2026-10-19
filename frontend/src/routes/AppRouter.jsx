@@ -21,6 +21,7 @@ import { DocumentoDetalle } from "../pages/public/DocumentoDetalle";
 import { DocumentoNuevo } from "../pages/public/DocumentoNuevo";
 
 import { Perfil } from "../pages/public/Perfil";
+import { HorariosAcademicos } from "../pages/public/HorariosAcademicos";
 import { Notificaciones } from "../pages/public/Notificaciones";
 import { DocentePublicaciones } from "../pages/docente/DocentePublicaciones";
 import { NoAutorizado } from "../pages/NoAutorizado";
@@ -176,6 +177,18 @@ return ( <Routes>
       <PrivateRoute>
         <Layout>
           <Perfil />
+        </Layout>
+      </PrivateRoute>
+    }
+  />
+
+  {/* Consulta de horarios académicos (solo lectura) */}
+  <Route
+    path={ROUTES.HORARIOS}
+    element={
+      <PrivateRoute>
+        <Layout>
+          <HorariosAcademicos />
         </Layout>
       </PrivateRoute>
     }

@@ -4,6 +4,7 @@ export const ROUTES = Object.freeze({
   NO_AUTORIZADO: "/no-autorizado",
   NOT_FOUND: "/no-encontrado",
   PERFIL: "/perfil",
+  HORARIOS: "/horarios",
   NOTIFICACIONES: "/notificaciones",
   DOCENTE_PUBLICACIONES: "/docente/publicaciones",
   NOTICIAS: "/noticias",

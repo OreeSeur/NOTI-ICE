@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ProfileInfoForm } from "../../components/profile/ProfileInfoForm";
 import { ProfileSummaryCard } from "../../components/profile/ProfileSummaryCard";
 import { SubscriptionPreferences } from "../../components/profile/SubscriptionPreferences";
 import { PersonalizedRecommendations } from "../../components/profile/PersonalizedRecommendations";
 import { AcademicProfileSection } from "../../components/profile/AcademicProfileSection";
+import { MisMateriasOferta } from "../../components/profile/MisMateriasOferta";
 import { useAuth } from "../../context/auth/useAuth";
 import { useToast } from "../../context/toast/useToast";
 import { useNoticias } from "../../context/noticias/useNoticias";
@@ -12,6 +14,7 @@ import { useEventos } from "../../context/eventos/useEventos";
 import { useDocumentos } from "../../context/documentos/useDocumentos";
 import { normalizeSubscriptions } from "../../constants/subscriptions";
 import { ROLES, normalizeRole } from "../../constants/roles";
+import { ROUTES } from "../../constants/routes";
 import { CorreoPreferencia } from "../../components/profile/CorreoPreferencia";
 import {
   hasValidationErrors,
@@ -205,6 +208,14 @@ export const Perfil = () => {
             onSaveAcademicProfile={handleAcademicProfileSave}
           />
 
+          {esAlumno && <MisMateriasOferta />}
+
+          <Link
+            to={ROUTES.HORARIOS}
+            className="inline-flex items-center justify-center rounded-lg bg-[#6F1D46] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Consultar materias y horarios académicos
+          </Link>
           <SubscriptionPreferences
             subscriptions={subscriptions}
             onToggleTopic={handleToggleTopic}

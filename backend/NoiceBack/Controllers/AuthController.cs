@@ -19,11 +19,19 @@ namespace PortalNoticiasAPI.Controllers
 
         private readonly PortalNoticiasContext _context;
         private readonly TokenService _tokenService;
+        private readonly EmailService _email;
+        private readonly IConfiguration _config;
 
-        public AuthController(PortalNoticiasContext context, TokenService tokenService)
+        public AuthController(
+            PortalNoticiasContext context,
+            TokenService tokenService,
+            EmailService email,
+            IConfiguration config)
         {
             _context = context;
             _tokenService = tokenService;
+            _email = email;
+            _config = config;
         }
 
         private static LoginResponseDto ToResponse(Usuario u, string rolNombre, string token) => new()
@@ -122,6 +130,18 @@ namespace PortalNoticiasAPI.Controllers
 
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
+
+            // Correo informativo; no contiene contraseñas ni tokens y no bloquea el registro.
+            var baseUrl = (_config["Frontend:BaseUrl"] ?? "").TrimEnd('/');
+            var cuerpoBienvenida = PlantillaCorreo.Armar(
+                "Bienvenido a NOTI ICE",
+                $"<p style=\"line-height:1.5\">Hola, {System.Net.WebUtility.HtmlEncode(usuario.Nombre)}. " +
+                "Tu cuenta de alumno se creó correctamente.</p>" +
+                "<p style=\"line-height:1.5\">Ya puedes consultar las publicaciones académicas de ESIME Zacatenco.</p>",
+                "Ir a NOTI ICE",
+                string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl,
+                "Si no realizaste este registro, puedes ignorar este correo. No compartas tu contraseña.");
+            _email.EnviarSinEsperar(usuario.Correo, "Bienvenido a NOTI ICE", cuerpoBienvenida);
 
             // Auto-login: le devolvemos el token de una vez para que no tenga que iniciar sesión aparte
             var token = _tokenService.GenerarToken(usuario, rolAlumno.Nombre);
