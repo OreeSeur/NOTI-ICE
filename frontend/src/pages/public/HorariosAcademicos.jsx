@@ -170,7 +170,7 @@ export const HorariosAcademicos = () => {
                 Plan
                 <select className={campo} value={plan} onChange={(e) => setPlan(e.target.value)}>
                   <option value="2024">2024</option>
-                  <option value="2003">2003</option>
+                  <option value="2004">2004</option>
                 </select>
               </label>
               <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">

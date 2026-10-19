@@ -12,8 +12,21 @@ const parametros = (valores) => {
   return cadena ? `?${cadena}` : "";
 };
 
-export const obtenerMateriasCatalogo = (plan) =>
-  get(`/catalogo-academico/materias${parametros({ plan })}`);
+// El controlador pagina hasta 100 registros: recuperar cada pagina sin truncar el catalogo.
+export const obtenerMateriasCatalogo = async (plan) => {
+  const tamanoPagina = 100;
+  const materias = [];
+  for (let pagina = 1; pagina <= 100; pagina += 1) {
+    const respuesta = await get(`/catalogo-academico/materias${parametros({ plan, pagina, tamanoPagina })}`);
+    const resultados = Array.isArray(respuesta?.resultados) ? respuesta.resultados : [];
+    materias.push(...resultados);
+    const total = Number(respuesta?.total);
+    if (resultados.length < tamanoPagina || (Number.isFinite(total) && materias.length >= total)) {
+      return materias;
+    }
+  }
+  throw new Error("El catalogo excede el limite de paginacion admitido.");
+};
 
 export const obtenerPeriodosOferta = () =>
   get("/oferta-academica/periodos");
