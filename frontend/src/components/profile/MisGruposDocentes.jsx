@@ -24,7 +24,7 @@ const AlumnosDelGrupo = ({ idGrupo }) => {
       setAlumnos(Array.isArray(respuesta) ? respuesta : []);
     } catch (err) {
       setAlumnos(null);
-      setError(err.message || "No fue posible consultar los alumnos inscritos.");
+      setError(err.message || "No fue posible consultar los alumnos suscritos.");
     } finally {
       setCargando(false);
     }
@@ -40,7 +40,7 @@ const AlumnosDelGrupo = ({ idGrupo }) => {
         aria-controls={`alumnos-grupo-${idGrupo}`}
         className="rounded-lg border border-[#6F1D46] px-3 py-2 font-semibold text-[#6F1D46] transition hover:bg-[#6F1D46]/10 disabled:opacity-60 dark:border-pink-300 dark:text-pink-200"
       >
-        {visible ? "Ocultar alumnos inscritos" : "Ver alumnos inscritos"}
+        {visible ? "Ocultar alumnos suscritos" : "Ver alumnos suscritos"}
       </button>
 
       {visible && (
@@ -50,10 +50,10 @@ const AlumnosDelGrupo = ({ idGrupo }) => {
           {!cargando && !error && alumnos !== null && (
             <>
               <p className="font-semibold text-slate-800 dark:text-slate-100">
-                Alumnos inscritos ({alumnos.length})
+                Alumnos suscritos ({alumnos.length})
               </p>
               {alumnos.length === 0 ? (
-                <p className="text-slate-500 dark:text-slate-400">Todavía no hay alumnos inscritos.</p>
+                <p className="text-slate-500 dark:text-slate-400">Todavía no hay alumnos suscritos.</p>
               ) : (
                 <ul className="space-y-2">
                   {alumnos.map((alumno) => (
@@ -91,8 +91,10 @@ export const MisGruposDocentes = () => {
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
-      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Mis materias y grupos oficiales</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400">Las asignaciones oficiales las administra el personal autorizado.</p>
+      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Mis materias y grupos en NOTI ICE</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        La administración del portal asigna los grupos. Los alumnos se suscriben libremente para recibir avisos; la lista no confirma una inscripción escolar.
+      </p>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {grupos.length === 0 && !error && <p className="text-sm dark:text-slate-300">No tienes grupos asignados actualmente.</p>}
       {grupos.map((g) => (

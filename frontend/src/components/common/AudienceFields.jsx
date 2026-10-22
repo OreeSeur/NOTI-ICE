@@ -65,7 +65,7 @@ export const AudienceFields = ({ audiencia, onChange }) => {
         const todos = Array.isArray(datos) ? datos : [];
         setGrupos(user?.rol === "Administrador" ? todos : todos.filter(g => g.idUsuario === user?.id));
       })
-      .catch(() => { if (vivo) setErrorGrupos("No se pudieron consultar los grupos oficiales."); });
+      .catch(() => { if (vivo) setErrorGrupos("No se pudieron consultar los grupos."); });
     return () => { vivo = false; };
   }, [user?.id, user?.rol]);
 
@@ -124,8 +124,8 @@ export const AudienceFields = ({ audiencia, onChange }) => {
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-        <h4 className="font-semibold text-slate-800 dark:text-white">Grupos oficiales (opcional)</h4>
-        <p className="mb-3 text-xs text-slate-500">Sin grupos seleccionados, se aplica la audiencia general. Al elegir uno, solo sus alumnos inscritos y docente responsable podrán ver el contenido.</p>
+        <h4 className="font-semibold text-slate-800 dark:text-white">Grupos destinatarios (opcional)</h4>
+        <p className="mb-3 text-xs text-slate-500">Sin grupos seleccionados, se aplica la audiencia general. Al elegir uno, el contenido se muestra a los alumnos suscritos a ese grupo, a su docente responsable y a la administración. Cualquier alumno puede suscribirse libremente y NOTI ICE no verifica la inscripción escolar: no lo uses para información confidencial.</p>
         {errorGrupos && <p role="alert" className="text-sm text-red-600">{errorGrupos}</p>}
         <div className="grid max-h-44 gap-2 overflow-y-auto sm:grid-cols-2">
           {grupos.map((g) => <label key={g.idGrupo} className="flex items-center gap-2 text-sm dark:text-slate-200">

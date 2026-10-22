@@ -215,8 +215,8 @@ export const PanelAdmin = () => {
       to: ROUTES.ADMIN_GRUPOS,
     },
     {
-      title: "Inscripciones oficiales",
-      description: "Gestionar alumnos por grupo",
+      title: "Suscripciones a grupos",
+      description: "Gestionar alumnos suscritos por grupo",
       icon: ClipboardList,
       to: ROUTES.ADMIN_INSCRIPCIONES,
     },

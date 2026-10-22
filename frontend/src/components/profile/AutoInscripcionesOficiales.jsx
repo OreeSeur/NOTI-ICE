@@ -67,12 +67,13 @@ export const AutoInscripcionesOficiales = () => {
   return (
     <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-700 dark:bg-slate-800">
       <div>
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Mis inscripciones académicas</h2>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Mis suscripciones a materias y grupos</h2>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
-          Selecciona materias y grupos oficiales. Los cambios se guardan en tu cuenta.
+          Suscríbete libremente a las materias y grupos que te interesen para recibir sus avisos y publicaciones.
+          No es una inscripción escolar ni NOTI ICE la verifica con el IPN; puedes darte de baja cuando quieras.
         </p>
       </div>
-      {cargando && <p className="text-sm">Cargando grupos e inscripciones...</p>}
+      {cargando && <p className="text-sm">Cargando grupos y suscripciones...</p>}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {aviso && <p role="status" className="text-sm text-green-700">{aviso}</p>}
       {!cargando && (
@@ -80,7 +81,7 @@ export const AutoInscripcionesOficiales = () => {
           <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => {
             e.preventDefault();
             if (!grupoId) return;
-            ejecutar(() => inscribirmeEnGrupo(Number(grupoId)), "Inscripción registrada correctamente.");
+            ejecutar(() => inscribirmeEnGrupo(Number(grupoId)), "Suscripción registrada. Recibirás los avisos de este grupo.");
           }}>
             <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
               Materia
@@ -102,12 +103,12 @@ export const AutoInscripcionesOficiales = () => {
             </label>
             <button disabled={ocupado || !grupoId || inscritos.has(Number(grupoId))}
               className="rounded-xl bg-[#6F1D46] px-5 py-3 font-semibold text-white disabled:opacity-50 md:col-span-2">
-              {ocupado ? "Guardando..." : "Inscribirme"}
+              {ocupado ? "Guardando..." : "Suscribirme"}
             </button>
           </form>
           <div className="space-y-3">
-            <h3 className="font-semibold text-slate-800 dark:text-white">Grupos en los que estoy inscrito</h3>
-            {inscripciones.length === 0 && <p className="text-sm text-slate-500">Todavía no tienes materias inscritas.</p>}
+            <h3 className="font-semibold text-slate-800 dark:text-white">Grupos a los que estoy suscrito</h3>
+            {inscripciones.length === 0 && <p className="text-sm text-slate-500">Todavía no tienes suscripciones a grupos.</p>}
             {inscripciones.map((i) => <div key={i.idGrupoAlumno}
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-600">
               <div className="text-sm text-slate-700 dark:text-slate-200">
@@ -116,7 +117,7 @@ export const AutoInscripcionesOficiales = () => {
                 <p>{String(i.horaInicio).slice(0, 5)} a {String(i.horaFin).slice(0, 5)}</p>
               </div>
               <button type="button" disabled={ocupado}
-                onClick={() => ejecutar(() => desinscribirmeDeGrupo(i.idGrupo), "Inscripción cancelada correctamente.")}
+                onClick={() => ejecutar(() => desinscribirmeDeGrupo(i.idGrupo), "Suscripción cancelada. Ya no recibirás los avisos de este grupo.")}
                 className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50 dark:text-red-300">
                 Darme de baja
               </button>

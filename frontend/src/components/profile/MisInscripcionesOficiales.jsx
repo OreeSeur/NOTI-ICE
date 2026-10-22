@@ -32,11 +32,11 @@ export const MisInscripcionesOficiales = () => {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-700 dark:bg-slate-800">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-        Mis inscripciones académicas
+        Mis suscripciones a materias y grupos
       </h2>
 
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        Materias y grupos registrados oficialmente en el sistema.
+        Materias y grupos a los que te suscribiste en NOTI ICE para recibir avisos. No equivalen a una inscripción escolar.
       </p>
 
       {cargando && <p className="mt-4 text-sm">Cargando inscripciones...</p>}
@@ -49,7 +49,7 @@ export const MisInscripcionesOficiales = () => {
 
       {!cargando && !error && inscripciones.length === 0 && (
         <p className="mt-4 text-sm text-slate-500">
-          No tienes inscripciones académicas registradas.
+          Todavía no tienes suscripciones a grupos.
         </p>
       )}
 

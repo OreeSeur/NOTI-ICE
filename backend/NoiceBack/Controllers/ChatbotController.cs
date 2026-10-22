@@ -64,7 +64,8 @@ public sealed class ChatbotController : ControllerBase
     [EnableRateLimiting(ChatbotUserRateLimitPolicy.PolicyName)]
     public async Task<ActionResult<RespuestaChatDto>> Consultar([FromBody] PreguntaChatDto? solicitud)
     {
-        if (!_config.GetValue("Chatbot:Enabled", true))
+        // Deshabilitado salvo Chatbot:Enabled=true explicito. Ausente, vacio o invalido => deshabilitado.
+        if (!(bool.TryParse(_config["Chatbot:Enabled"], out var chatbotHabilitado) && chatbotHabilitado))
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { mensaje = "El asistente no esta disponible en esta version de prueba.", codigo = "chatbot_disabled" });
 

@@ -170,7 +170,7 @@ export const AdminGrupos = () => {
   return (
     <section className="space-y-6">
       <PageHeader title="Administración de grupos" eyebrow="Gestión académica"
-        description="Crea y actualiza grupos oficiales, asigna docentes y define horarios. Los datos se guardan en MySQL." />
+        description="Crea y actualiza los grupos del portal, asigna docentes y define horarios. Los alumnos se suscriben libremente para recibir avisos. Los datos se guardan en MySQL." />
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={abrirNuevo}
           disabled={cargando || ocupado || !materias.length || !tipos.length || !docentes.length}

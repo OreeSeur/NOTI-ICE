@@ -103,7 +103,15 @@ namespace PortalNoticiasAPI.Controllers
             if (string.IsNullOrWhiteSpace(identificacion) || identificacion.Length > 30)
                 return BadRequest(new { mensaje = "El número de identificación debe contener entre 1 y 30 caracteres" });
 
-            var correoExiste = await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo);
+            var nombre = ValidacionCuenta.NormalizarNombre(dto.Nombre);
+            var correo = ValidacionCuenta.NormalizarCorreo(dto.Correo);
+            var errorCuenta = ValidacionCuenta.ValidarNombre(nombre)
+                ?? ValidacionCuenta.ValidarCorreo(correo)
+                ?? ValidacionCuenta.ValidarContrasena(dto.Contrasena);
+            if (errorCuenta != null)
+                return BadRequest(new { mensaje = errorCuenta });
+
+            var correoExiste = await _context.Usuarios.AnyAsync(u => u.Correo == correo);
             if (correoExiste)
                 return BadRequest(new { mensaje = "Ya existe un usuario con ese correo" });
 
@@ -117,10 +125,10 @@ namespace PortalNoticiasAPI.Controllers
 
             var usuario = new Usuario
             {
-                Nombre = dto.Nombre,
+                Nombre = nombre,
                 IdRol = rolAlumno.IdRol,
                 NoIdentificacion = identificacion!,
-                Correo = dto.Correo,
+                Correo = correo,
                 Contrasena = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena),
                 Carrera = dto.Carrera.Trim(),
                 Semestre = dto.Semestre,
@@ -165,8 +173,10 @@ namespace PortalNoticiasAPI.Controllers
             if (usuario == null)
                 return NotFound(new { mensaje = "No se encontró el usuario" });
 
-            if (string.IsNullOrWhiteSpace(dto.Nombre) || dto.Nombre.Trim().Length < 3)
-                return BadRequest(new { mensaje = "El nombre debe tener al menos 3 caracteres" });
+            var nombre = ValidacionCuenta.NormalizarNombre(dto.Nombre);
+            var errorNombre = ValidacionCuenta.ValidarNombre(nombre);
+            if (errorNombre != null)
+                return BadRequest(new { mensaje = errorNombre });
 
             // Los datos académicos son obligatorios solo para alumnos
             var esAlumno = usuario.Rol?.Nombre == "Alumno";
@@ -174,7 +184,7 @@ namespace PortalNoticiasAPI.Controllers
             if (errorAcademico != null)
                 return BadRequest(new { mensaje = errorAcademico });
 
-            usuario.Nombre = dto.Nombre.Trim();
+            usuario.Nombre = nombre;
             usuario.Carrera = string.IsNullOrWhiteSpace(dto.Carrera) ? null : dto.Carrera.Trim();
             usuario.Semestre = dto.Semestre;
 

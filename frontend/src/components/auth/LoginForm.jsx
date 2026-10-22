@@ -159,6 +159,8 @@ export const LoginForm = () => {
                   onChange={handleChange}
                   className={inputClass}
                   placeholder="Nombre completo"
+                  minLength={3}
+                  maxLength={150}
                   required
                 />
               </div>
@@ -233,6 +235,7 @@ export const LoginForm = () => {
               onChange={handleChange}
               className={inputClass}
               placeholder="correo@esime.mx"
+              maxLength={mode === "register" ? 150 : undefined}
               required
             />
           </div>
@@ -249,6 +252,8 @@ export const LoginForm = () => {
               onChange={handleChange}
               className={inputClass}
               placeholder="Contraseña"
+              // Solo al registrarse: las cuentas existentes inician sesión sin reglas nuevas.
+              minLength={mode === "register" ? 8 : undefined}
               required
             />
             <button

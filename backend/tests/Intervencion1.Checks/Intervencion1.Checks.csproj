@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Pruebas aisladas de la Intervencion 1: controladores reales sobre SQLite en memoria.
+         No inicia Program.cs ni usa MySQL, el VPS, SMTP real u Ollama. -->
+    <ProjectReference Include="../../NoiceBack/NoiceBack.csproj" />
+    <!-- Solo para pruebas; misma version de EF Core 9 que exige Pomelo 9.0.0. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+  </ItemGroup>
+</Project>

@@ -12,6 +12,14 @@ namespace PortalNoticiasAPI.Controllers
     [Authorize(Roles = "Administrador")]
     public class RolesController : ControllerBase
     {
+        // [Authorize(Roles = ...)], el registro publico y las audiencias dependen de estos nombres.
+        // Se comparan sin distinguir mayusculas para impedir tambien variantes como "administrador".
+        private static readonly HashSet<string> RolesEsenciales =
+            new(StringComparer.OrdinalIgnoreCase) { "Administrador", "Docente", "Alumno" };
+
+        private static bool EsEsencial(string? nombre) =>
+            nombre != null && RolesEsenciales.Contains(nombre.Trim());
+
         private readonly PortalNoticiasContext _context;
         public RolesController(PortalNoticiasContext context) => _context = context;
 
@@ -38,6 +46,9 @@ namespace PortalNoticiasAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<RolDto>> CrearRol(RolCreateUpdateDto dto)
         {
+            if (EsEsencial(dto.Nombre))
+                return Conflict(new { mensaje = "Ese nombre está reservado para un rol esencial de NOTI ICE." });
+
             var rol = new NombreRol { Nombre = dto.Nombre, FechaAlta = DateTime.Now, Activo = true };
             _context.NombreRoles.Add(rol);
             await _context.SaveChangesAsync();
@@ -53,6 +64,11 @@ namespace PortalNoticiasAPI.Controllers
 
             if (rol.Nombre != dto.Nombre)
             {
+                if (EsEsencial(rol.Nombre))
+                    return Conflict(new { mensaje = $"El rol {rol.Nombre} es esencial para NOTI ICE y no puede renombrarse." });
+                if (EsEsencial(dto.Nombre))
+                    return Conflict(new { mensaje = "Ese nombre está reservado para un rol esencial de NOTI ICE." });
+
                 await using var transaccion = await _context.Database.BeginTransactionAsync();
                 rol.Nombre = dto.Nombre;
                 await _context.Usuarios.Where(u => u.IdRol == id).ExecuteUpdateAsync(
@@ -69,6 +85,9 @@ namespace PortalNoticiasAPI.Controllers
             var rol = await _context.NombreRoles.FindAsync(id);
             if (rol == null || !rol.Activo)
                 return NotFound(new { mensaje = $"No se encontró el rol con id {id}" });
+
+            if (EsEsencial(rol.Nombre))
+                return Conflict(new { mensaje = $"El rol {rol.Nombre} es esencial para NOTI ICE y no puede desactivarse." });
 
             await using var transaccion = await _context.Database.BeginTransactionAsync();
             rol.Activo = false;

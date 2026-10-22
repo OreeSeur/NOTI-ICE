@@ -1,9 +1,12 @@
+using System.Data;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortalNoticiasAPI.Data;
 using PortalNoticiasAPI.DTOs;
 using PortalNoticiasAPI.Models;
+using PortalNoticiasAPI.Services;
 
 namespace PortalNoticiasAPI.Controllers
 {
@@ -12,8 +15,38 @@ namespace PortalNoticiasAPI.Controllers
     [Authorize(Roles = "Administrador")]
     public class UsuariosController : ControllerBase
     {
+        private const string RolAdministrador = "Administrador";
+        private const string MensajeUltimoAdministrador =
+            "La operación dejaría a NOTI ICE sin administradores activos.";
+        private const string MensajeConcurrencia =
+            "Otra operación administrativa modificó estas cuentas al mismo tiempo. Actualiza la lista e inténtalo de nuevo.";
+
         private readonly PortalNoticiasContext _context;
         public UsuariosController(PortalNoticiasContext context) => _context = context;
+
+        // La identidad del administrador que actua sale del JWT ya validado.
+        private bool TryObtenerIdActor(out int idActor) =>
+            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out idActor);
+
+        private async Task<bool> EsAdministradorActivoAsync(Usuario usuario)
+        {
+            if (!usuario.Activo) return false;
+            var idRol = usuario.IdRol;
+            return await _context.NombreRoles.AnyAsync(r => r.IdRol == idRol &&
+                r.Activo && r.Nombre == RolAdministrador);
+        }
+
+        private Task<bool> ExisteOtroAdministradorActivoAsync(int idExcluido) =>
+            _context.Usuarios.AnyAsync(u => u.IdUsuario != idExcluido && u.Activo &&
+                u.Rol != null && u.Rol.Activo && u.Rol.Nombre == RolAdministrador);
+
+        // Las operaciones que pueden retirar a un administrador se ejecutan en una transaccion
+        // SERIALIZABLE. En InnoDB sus lecturas bloquean las filas consultadas hasta el COMMIT:
+        // si dos administradores intentan retirarse mutuamente a la vez, MySQL aborta una de las
+        // transacciones (interbloqueo 1213) y nunca quedan ambas confirmadas. No requiere cambios de esquema.
+        // La clasificacion (1213/1205 en cualquier nivel de anidamiento) esta en ConflictoConcurrencia.
+        private static bool EsConflictoConcurrente(Exception ex) =>
+            ConflictoConcurrencia.EsConflictoConcurrente(ex);
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UsuarioDto>>> GetUsuarios()
@@ -87,6 +120,14 @@ namespace PortalNoticiasAPI.Controllers
             if (string.IsNullOrWhiteSpace(identificacion) || identificacion.Length > 30)
                 return BadRequest(new { mensaje = "El número de identificación debe contener entre 1 y 30 caracteres" });
 
+            var nombre = ValidacionCuenta.NormalizarNombre(dto.Nombre);
+            var correo = ValidacionCuenta.NormalizarCorreo(dto.Correo);
+            var errorCuenta = ValidacionCuenta.ValidarNombre(nombre)
+                ?? ValidacionCuenta.ValidarCorreo(correo)
+                ?? ValidacionCuenta.ValidarContrasena(dto.Contrasena);
+            if (errorCuenta != null)
+                return BadRequest(new { mensaje = errorCuenta });
+
             var identificacionExistente = await _context.Usuarios
                 .Where(u => u.NoIdentificacion == identificacion)
                 .Select(u => new { u.Activo })
@@ -97,7 +138,7 @@ namespace PortalNoticiasAPI.Controllers
                     : "La identificación pertenece a una cuenta inactiva. Reactívala desde Administración de usuarios." });
 
             var correoExistente = await _context.Usuarios
-                .Where(u => u.Correo == dto.Correo)
+                .Where(u => u.Correo == correo)
                 .Select(u => new { u.Activo })
                 .FirstOrDefaultAsync();
             if (correoExistente != null)
@@ -111,10 +152,10 @@ namespace PortalNoticiasAPI.Controllers
 
             var usuario = new Usuario
             {
-                Nombre = dto.Nombre,
+                Nombre = nombre,
                 IdRol = dto.IdRol,
                 NoIdentificacion = identificacion!,
-                Correo = dto.Correo,
+                Correo = correo,
                 Contrasena = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena),
                 FechaAlta = DateTime.Now,
                 Activo = true
@@ -138,31 +179,59 @@ namespace PortalNoticiasAPI.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> ActualizarUsuario(int id, UsuarioUpdateDto dto)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null || !usuario.Activo)
-                return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
+            if (!TryObtenerIdActor(out var idActor))
+                return Unauthorized(new { mensaje = "No se pudo identificar al usuario autenticado" });
 
-            if (string.IsNullOrWhiteSpace(dto.Nombre) || string.IsNullOrWhiteSpace(dto.Correo))
-                return BadRequest(new { mensaje = "El nombre y el correo son obligatorios." });
+            var nombre = ValidacionCuenta.NormalizarNombre(dto.Nombre);
+            var nuevoCorreo = ValidacionCuenta.NormalizarCorreo(dto.Correo);
+            var errorCuenta = ValidacionCuenta.ValidarNombre(nombre)
+                ?? ValidacionCuenta.ValidarCorreo(nuevoCorreo);
 
-            var rolValido = await _context.NombreRoles.AnyAsync(r => r.IdRol == dto.IdRol && r.Activo);
-            if (!rolValido)
-                return BadRequest(new { mensaje = "El rol indicado no existe o está inactivo." });
+            try
+            {
+                await using var transaccion = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-            if (await _context.Usuarios.AnyAsync(u => u.IdUsuario != id && u.Correo == dto.Correo))
-                return Conflict(new { mensaje = "Ese correo ya pertenece a otra cuenta. No puede reutilizarse." });
+                var usuario = await _context.Usuarios.FindAsync(id);
+                if (usuario == null || !usuario.Activo)
+                    return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
 
-            var nuevoCorreo = dto.Correo.Trim();
-            if (usuario.IdRol != dto.IdRol ||
-                !string.Equals(usuario.Correo, nuevoCorreo, StringComparison.Ordinal))
-                usuario.VersionSesion++;
+                if (errorCuenta != null)
+                    return BadRequest(new { mensaje = errorCuenta });
 
-            usuario.Nombre = dto.Nombre.Trim();
-            usuario.IdRol = dto.IdRol;
-            usuario.Correo = nuevoCorreo;
+                var nuevoRol = await _context.NombreRoles
+                    .Where(r => r.IdRol == dto.IdRol && r.Activo)
+                    .Select(r => r.Nombre)
+                    .FirstOrDefaultAsync();
+                if (nuevoRol == null)
+                    return BadRequest(new { mensaje = "El rol indicado no existe o está inactivo." });
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+                var seguiraSiendoAdministrador = nuevoRol == RolAdministrador;
+                if (id == idActor && !seguiraSiendoAdministrador)
+                    return Conflict(new { mensaje = "No puedes quitarte el rol de Administrador. Pide a otro administrador que realice el cambio." });
+
+                if (!seguiraSiendoAdministrador && await EsAdministradorActivoAsync(usuario) &&
+                    !await ExisteOtroAdministradorActivoAsync(id))
+                    return Conflict(new { mensaje = MensajeUltimoAdministrador });
+
+                if (await _context.Usuarios.AnyAsync(u => u.IdUsuario != id && u.Correo == nuevoCorreo))
+                    return Conflict(new { mensaje = "Ese correo ya pertenece a otra cuenta. No puede reutilizarse." });
+
+                if (usuario.IdRol != dto.IdRol ||
+                    !string.Equals(usuario.Correo, nuevoCorreo, StringComparison.Ordinal))
+                    usuario.VersionSesion++;
+
+                usuario.Nombre = nombre;
+                usuario.IdRol = dto.IdRol;
+                usuario.Correo = nuevoCorreo;
+
+                await _context.SaveChangesAsync();
+                await transaccion.CommitAsync();
+                return NoContent();
+            }
+            catch (Exception ex) when (EsConflictoConcurrente(ex))
+            {
+                return Conflict(new { mensaje = MensajeConcurrencia });
+            }
         }
 
         // Reactivación lógica: se conserva el ID, la contraseña y las relaciones académicas.
@@ -193,14 +262,33 @@ namespace PortalNoticiasAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> EliminarUsuario(int id)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null || !usuario.Activo)
-                return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
+            if (!TryObtenerIdActor(out var idActor))
+                return Unauthorized(new { mensaje = "No se pudo identificar al usuario autenticado" });
 
-            usuario.Activo = false;
-            usuario.VersionSesion++;
-            await _context.SaveChangesAsync();
-            return NoContent();
+            if (id == idActor)
+                return Conflict(new { mensaje = "No puedes desactivar tu propia cuenta. Pide a otro administrador que lo haga." });
+
+            try
+            {
+                await using var transaccion = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
+                var usuario = await _context.Usuarios.FindAsync(id);
+                if (usuario == null || !usuario.Activo)
+                    return NotFound(new { mensaje = $"No se encontró el usuario con id {id}" });
+
+                if (await EsAdministradorActivoAsync(usuario) && !await ExisteOtroAdministradorActivoAsync(id))
+                    return Conflict(new { mensaje = MensajeUltimoAdministrador });
+
+                usuario.Activo = false;
+                usuario.VersionSesion++;
+                await _context.SaveChangesAsync();
+                await transaccion.CommitAsync();
+                return NoContent();
+            }
+            catch (Exception ex) when (EsConflictoConcurrente(ex))
+            {
+                return Conflict(new { mensaje = MensajeConcurrencia });
+            }
         }
     }
 }

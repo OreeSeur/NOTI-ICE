@@ -125,8 +125,8 @@ export const AdminInscripciones = () => {
 
   return (
     <section className="space-y-6">
-      <PageHeader title="Inscripciones oficiales" eyebrow="Gestión académica"
-        description="Consulta los alumnos inscritos, inscribe, desinscribe y reinscribe. Los registros oficiales se conservan en MySQL." />
+      <PageHeader title="Suscripciones a grupos" eyebrow="Gestión académica"
+        description="Consulta y gestiona a los alumnos suscritos a cada grupo para recibir sus avisos. Son suscripciones voluntarias del portal, no inscripciones escolares del IPN; se conservan en MySQL." />
       <div className="flex flex-wrap gap-3">
         <Link to={ROUTES.ADMIN_GRUPOS} className={`${clasesBotonCatalogo} bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-700 dark:text-white`}>
           Volver a grupos
@@ -155,7 +155,7 @@ export const AdminInscripciones = () => {
       </div>
 
       {cargando ? <p role="status">Cargando grupos y alumnos…</p> : !grupoActual ? (
-        <EmptyState title="Selecciona un grupo" message="Elige un grupo activo para consultar y gestionar sus inscripciones oficiales." />
+        <EmptyState title="Selecciona un grupo" message="Elige un grupo activo para consultar y gestionar sus suscripciones." />
       ) : (
         <>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">

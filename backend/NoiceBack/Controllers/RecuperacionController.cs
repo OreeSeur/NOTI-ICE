@@ -17,7 +17,6 @@ namespace PortalNoticiasAPI.Controllers
     {
         private const int MinutosVigencia = 30;
         private const int MinutosEntreSolicitudes = 2;
-        private const int ContrasenaMinima = 8;
 
         private readonly PortalNoticiasContext _context;
         private readonly EmailService _email;
@@ -98,8 +97,9 @@ namespace PortalNoticiasAPI.Controllers
             if (string.IsNullOrWhiteSpace(dto.Correo) || string.IsNullOrWhiteSpace(dto.Token))
                 return BadRequest(new { mensaje = enlaceInvalido });
 
-            if (string.IsNullOrEmpty(dto.NuevaContrasena) || dto.NuevaContrasena.Length < ContrasenaMinima)
-                return BadRequest(new { mensaje = $"La contraseña debe tener al menos {ContrasenaMinima} caracteres" });
+            var errorContrasena = ValidacionCuenta.ValidarContrasena(dto.NuevaContrasena);
+            if (errorContrasena != null)
+                return BadRequest(new { mensaje = errorContrasena });
 
             var correo = dto.Correo.Trim();
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Correo == correo && u.Activo);
