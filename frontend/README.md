@@ -14,12 +14,18 @@ El proyecto permite gestionar avisos, eventos, documentos, notificaciones, perfi
 - LocalStorage en modo mock
 - Preparación para API REST ASP.NET Core + MySQL
 
-## Instalación
+## Instalación y ejecución
+
+Los comandos se ejecutan dentro de `frontend/`. La guía completa, que incluye backend
+y MySQL, está en [`../docs/pruebas/00-arranque-local.md`](../docs/pruebas/00-arranque-local.md).
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run dev:ollama   # API real en http://localhost:5135 y asistente visible
+npm run dev          # usa frontend/.env; sin él, modo simulado (mock)
 ```
+
+`dev:ollama` requiere el backend en ejecución con el perfil `ollama-local`.
 
 Para validar antes de subir cambios:
 
@@ -30,25 +36,18 @@ npm run build
 
 ## Variables de entorno
 
-Copia `.env.example` como `.env` si quieres modificar la configuración local.
+Para el modo `dev:ollama` se usa `.env.ollama` (versionado, sin secretos). Para
+`npm run dev` copia `.env.example` como `.env` y ajústalo:
 
 ```env
-VITE_DATA_SOURCE=mock
-VITE_API_URL=http://localhost:5000/api
+VITE_DATA_SOURCE=api        # api = backend real; mock = datos simulados en localStorage
+VITE_API_URL=http://localhost:5135/api
 VITE_AUTH_TOKEN_KEY=noti_ice_auth_token
+# VITE_CHATBOT_ENABLED=true # oculto salvo true explícito, antes de compilar
 ```
 
-Por ahora debe mantenerse:
-
-```env
-VITE_DATA_SOURCE=mock
-```
-
-Cuando exista backend, se podrá cambiar gradualmente a:
-
-```env
-VITE_DATA_SOURCE=api
-```
+Si falta `VITE_DATA_SOURCE`, la aplicación cae en `mock`. Vite incorpora estas
+variables al compilar: reinícialo al cambiarlas.
 
 ## Usuarios de demostración
 
@@ -103,4 +102,4 @@ Consulta `../docs/frontend/07-identidad-grafica-ipn.md` para más detalles.
 
 ## Estado actual
 
-El frontend está listo para continuar con la etapa de backend. La persistencia sigue siendo local mediante `localStorage`, pero ya existe una capa de servicios, storage, configuración y API futura para facilitar la migración a ASP.NET Core + MySQL.
+El frontend consume la API ASP.NET Core + MySQL con `VITE_DATA_SOURCE=api`. El modo `mock` (`localStorage`) se conserva solo como alternativa de desarrollo sin backend.
