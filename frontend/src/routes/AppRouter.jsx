@@ -24,6 +24,7 @@ import { Perfil } from "../pages/public/Perfil";
 import { HorariosAcademicos } from "../pages/public/HorariosAcademicos";
 import { Notificaciones } from "../pages/public/Notificaciones";
 import { DocentePublicaciones } from "../pages/docente/DocentePublicaciones";
+import { DocenteMaterias } from "../pages/docente/DocenteMaterias";
 import { NoAutorizado } from "../pages/NoAutorizado";
 
 /* Autenticación */
@@ -36,6 +37,7 @@ import { AdminMaterias } from "../pages/admin/materias/AdminMaterias";
 import { AdminTiposGrupos } from "../pages/admin/tipos-grupos/AdminTiposGrupos";
 import { AdminGrupos } from "../pages/admin/grupos/AdminGrupos";
 import { AdminInscripciones } from "../pages/admin/inscripciones/AdminInscripciones";
+import { AdminSolicitudesDocentes } from "../pages/admin/solicitudes/AdminSolicitudesDocentes";
 
 import { AdminNoticias } from "../pages/admin/noticias/AdminNoticias";
 import { AdminEditarNoticia } from "../pages/admin/noticias/AdminEditarNoticia";
@@ -276,6 +278,18 @@ return ( <Routes>
     }
   />
 
+  {/* Solicitud de materias que imparte el docente (solo Docente; el backend lo vuelve a validar) */}
+  <Route
+    path={ROUTES.DOCENTE_MATERIAS}
+    element={
+      <RoleRoute roles={[ROLES.DOCENTE]}>
+        <Layout>
+          <DocenteMaterias />
+        </Layout>
+      </RoleRoute>
+    }
+  />
+
 {/* Gestión de grupos e inscripciones oficiales (solo administrador) */}
 <Route
   path={ROUTES.ADMIN_GRUPOS}
@@ -284,6 +298,10 @@ return ( <Routes>
 <Route
   path={ROUTES.ADMIN_INSCRIPCIONES}
   element={<AdminRoute><Layout><AdminInscripciones /></Layout></AdminRoute>}
+/>
+<Route
+  path={ROUTES.ADMIN_SOLICITUDES_DOCENTES}
+  element={<AdminRoute><Layout><AdminSolicitudesDocentes /></Layout></AdminRoute>}
 />
 
 {/* Administración */}

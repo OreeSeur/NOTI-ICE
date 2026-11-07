@@ -52,5 +52,6 @@ export const DEFAULT_AUDIENCE = Object.freeze({
   semestres: [AUDIENCE_ALL_VALUE],
   categorias: [AUDIENCE_ALL_VALUE],
   grupos: [], // Vacío = publicación sin restricción por grupo.
+  unidadesOferta: [], // Materias de los horarios aprobadas al docente. Vacío = sin restricción.
   prioridad: "normal",
 });

@@ -4,8 +4,12 @@ import { get } from "../../api/apiClient";
 import { useAuth } from "../../context/auth/useAuth";
 import { isMockDataSource } from "../../config/appConfig";
 
+import { Link } from "react-router-dom";
 import { getAudienceSelectOptions, normalizeAudience } from "../../utils/audience";
 import { AUDIENCE_ALL_VALUE } from "../../constants/audience";
+import { ROLES, normalizeRole } from "../../constants/roles";
+import { ROUTES } from "../../constants/routes";
+import { obtenerDestinosPublicacion } from "../../services/solicitudesDocentesService";
 
 const options = getAudienceSelectOptions();
 
@@ -56,6 +60,20 @@ export const AudienceFields = ({ audiencia, onChange }) => {
   const { user } = useAuth();
   const [grupos, setGrupos] = useState([]);
   const [errorGrupos, setErrorGrupos] = useState("");
+  const [materias, setMaterias] = useState([]);
+  const [errorMaterias, setErrorMaterias] = useState("");
+  const puedeElegirMaterias = [ROLES.ADMIN, ROLES.DOCENTE].includes(normalizeRole(user?.rol));
+
+  // Materias de los horarios con asignación aprobada (Docente: las suyas; Administrador: todas).
+  useEffect(() => {
+    if (isMockDataSource() || !puedeElegirMaterias) return;
+    let vivo = true;
+    obtenerDestinosPublicacion()
+      .then((datos) => { if (vivo) setMaterias(Array.isArray(datos) ? datos : []); })
+      .catch(() => { if (vivo) setErrorMaterias("No se pudieron consultar tus materias aprobadas."); });
+    return () => { vivo = false; };
+  }, [puedeElegirMaterias, user?.id]);
+
   useEffect(() => {
     if (isMockDataSource()) return;
     let vivo = true;
@@ -138,6 +156,43 @@ export const AudienceFields = ({ audiencia, onChange }) => {
           </label>)}
         </div>
       </div>
+
+      {puedeElegirMaterias && !isMockDataSource() && (
+        <div className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+          <h4 className="font-semibold text-slate-800 dark:text-white">Materias de los horarios (opcional)</h4>
+          <p className="mb-3 text-xs text-slate-500">
+            Al elegir una materia, el contenido solo lo ven los alumnos que la agregaron a su perfil, su docente
+            aprobado y la administración. Los alumnos agregan materias libremente y NOTI ICE no verifica la
+            inscripción escolar: no lo uses para información confidencial.
+          </p>
+          {errorMaterias && <p role="alert" className="text-sm text-red-600">{errorMaterias}</p>}
+          {!errorMaterias && materias.length === 0 && (
+            <p className="text-sm text-slate-500">
+              {normalizeRole(user?.rol) === ROLES.DOCENTE
+                ? <>No tienes materias aprobadas. Solicítalas en <Link to={ROUTES.DOCENTE_MATERIAS} className="font-semibold text-[#6F1D46] hover:underline dark:text-pink-200">Mis materias</Link>.</>
+                : "Todavía no hay materias con docente aprobado."}
+            </p>
+          )}
+          <div className="grid max-h-44 gap-2 overflow-y-auto sm:grid-cols-2">
+            {materias.map((m) => (
+              <label key={m.idUnidadOferta} className="flex items-center gap-2 text-sm dark:text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={normalizedAudience.unidadesOferta.includes(m.idUnidadOferta)}
+                  onChange={(e) => onChange("unidadesOferta", e.target.checked
+                    ? [...normalizedAudience.unidadesOferta, m.idUnidadOferta]
+                    : normalizedAudience.unidadesOferta.filter((id) => id !== m.idUnidadOferta))}
+                  className="h-4 w-4 accent-[#6F1D46]"
+                />
+                <span>
+                  {m.codigoGrupo} · {m.nombrePublicado}{m.esLaboratorio ? " (lab.)" : ""}
+                  <span className="text-xs text-slate-500"> · {m.alumnosSuscritos} alumno{m.alumnosSuscritos === 1 ? "" : "s"}{m.docenteNombre ? ` · ${m.docenteNombre}` : ""}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 max-w-sm">
         <label className="mb-2 block font-medium text-slate-800 dark:text-white">

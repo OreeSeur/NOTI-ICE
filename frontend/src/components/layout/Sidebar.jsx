@@ -16,6 +16,7 @@ import {
   UserRound,
   Bell,
   Send,
+  BookOpenCheck,
   Menu,
   X,
 } from "lucide-react";
@@ -82,6 +83,11 @@ export const Sidebar = ({
             icon: Send,
             label: "Mis publicaciones",
             path: ROUTES.DOCENTE_PUBLICACIONES,
+          },
+          {
+            icon: BookOpenCheck,
+            label: "Mis materias",
+            path: ROUTES.DOCENTE_MATERIAS,
           },
         ]
       : []),

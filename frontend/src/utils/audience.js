@@ -30,6 +30,11 @@ const normalizeSemestreValue = (value) => {
   return match ? match[0] : text;
 };
 
+const idsPositivos = (valores) =>
+  Array.isArray(valores)
+    ? [...new Set(valores.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))]
+    : [];
+
 export const normalizeAudience = (audiencia = {}) => ({
   ...DEFAULT_AUDIENCE,
   ...audiencia,
@@ -37,9 +42,8 @@ export const normalizeAudience = (audiencia = {}) => ({
   carreras: unique(ensureArray(audiencia.carreras)),
   semestres: unique(ensureArray(audiencia.semestres)),
   categorias: unique(ensureArray(audiencia.categorias)),
-  grupos: Array.isArray(audiencia.grupos)
-    ? [...new Set(audiencia.grupos.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))]
-    : [],
+  grupos: idsPositivos(audiencia.grupos),
+  unidadesOferta: idsPositivos(audiencia.unidadesOferta),
   prioridad: audiencia.prioridad || DEFAULT_AUDIENCE.prioridad,
 });
 

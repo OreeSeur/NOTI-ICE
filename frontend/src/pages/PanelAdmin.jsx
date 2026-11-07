@@ -9,7 +9,9 @@ import {
   FileText,
   UserPlus,
   Users,
+  BookOpenCheck,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AdminListCard } from "../components/admin/AdminListCard";
 import { AdminStatCard } from "../components/admin/AdminStatCard";
@@ -20,6 +22,8 @@ import { useNoticias } from "../context/noticias/useNoticias";
 import { useDocumentos } from "../context/documentos/useDocumentos";
 import { useEventos } from "../context/eventos/useEventos";
 import { useUsuarios } from "../context/usuarios/useUsuarios";
+import { isApiDataSource } from "../config/appConfig";
+import { obtenerTotalPendientes } from "../services/solicitudesDocentesService";
 
 const meses = {
   enero: 0,
@@ -117,6 +121,16 @@ export const PanelAdmin = () => {
   const { eventos } = useEventos();
   const { documentos } = useDocumentos();
   const { usuarios } = useUsuarios();
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState(null);
+
+  useEffect(() => {
+    if (!isApiDataSource()) return;
+    let activo = true;
+    obtenerTotalPendientes()
+      .then((r) => { if (activo) setSolicitudesPendientes(Number(r?.total) || 0); })
+      .catch(() => { if (activo) setSolicitudesPendientes(null); });
+    return () => { activo = false; };
+  }, []);
 
   const eventosProximos = obtenerEventosProximos(eventos);
   const documentosRecientes = ordenarPorFechaDesc(documentos).slice(0, 4);
@@ -190,6 +204,18 @@ export const PanelAdmin = () => {
   ];
 
   const accionesRapidas = [
+    ...(isApiDataSource()
+      ? [{
+          title: solicitudesPendientes
+            ? `Solicitudes de docentes (${solicitudesPendientes})`
+            : "Solicitudes de docentes",
+          description: solicitudesPendientes
+            ? `${solicitudesPendientes} pendiente${solicitudesPendientes === 1 ? "" : "s"} de revisión`
+            : "Aprobar las materias que imparte cada docente",
+          icon: BookOpenCheck,
+          to: ROUTES.ADMIN_SOLICITUDES_DOCENTES,
+        }]
+      : []),
     {
       title: "Academias",
       description: "Gestionar el catálogo académico",
