@@ -39,6 +39,10 @@ El valor de respaldo del controlador sigue siendo `llama3` si se omite el modelo
   se libera al finalizar, fallar, agotar el timeout o cancelar la solicitud.
 - Una consulta sin fuentes sigue respondiendo normalmente y no ocupa un permiso
   de generacion. El JSON exitoso `texto`/`enlaces` permanece igual.
+- Desde el 7 de noviembre de 2026, las respuestas academicas (horarios, materias,
+  catalogo, mis materias y perfil) se arman sin Ollama: **no ocupan permiso de
+  generacion**, pero **si consumen cupo** del limite por usuario, porque la politica
+  se aplica al endpoint completo.
 
 ## Verificacion acotada
 

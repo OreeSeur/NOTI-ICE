@@ -292,9 +292,21 @@ La alternativa HTTPS base usa el perfil `https`, API `https://localhost:7165` y 
 
 ## 11. Asistente: alcance real y límites
 
-El controlador actual recupera **noticias, eventos y documentos autorizados para el usuario**. Todavía no consulta catálogo de materias ni horarios. Habilitar Ollama no implementó esa función.
+Actualizado el 7 de noviembre de 2026 (commits `2a3b3ab` y `49b2542`). `ChatbotController` usa dos tipos de fuentes, con distinto tratamiento:
 
-Con las publicaciones vacías, la respuesta esperada es `No encontre informacion publicada para tu perfil sobre ese tema.` En ese caso no se llama al modelo. No confundir esa respuesta con fallo de Ollama ni insertar publicaciones automáticamente para evitarla.
+| Fuente | Quién la recibe | Cómo se responde |
+|---|---|---|
+| Noticias, eventos y documentos | Según el filtro de audiencia existente (`AudienciaAccesoService.PuedeVer`) | Ollama redacta a partir del contexto autorizado |
+| Horario por grupo; búsqueda de materia o docente publicado | `Administrador`, `Docente`, `Alumno` (igual que `/api/oferta-academica`) | Texto exacto armado en la API, sin Ollama |
+| Catálogo por plan/semestre | Los mismos tres roles (igual que `/api/catalogo-academico`); clave IPN solo si está verificada | Texto exacto, sin Ollama |
+| Mis materias | Solo `Alumno`, solo sus selecciones activas (igual que `/mis-materias`) | Texto exacto, sin Ollama |
+| Perfil propio | Cualquier usuario autenticado; nombre, rol, carrera y semestre, sin correo, boleta ni secretos | Texto exacto, sin Ollama |
+
+La lógica está en `Services/ChatbotFuentesAcademicasService.cs`. Solo usa el periodo activo más reciente (o uno activo mencionado). Un rol distinto de los tres no recibe datos académicos.
+
+**Decisión del usuario (7 nov. 2026):** las respuestas académicas no pasan por el modelo. En la prueba con `llama3.2:3b`, al redactar horarios el modelo reagrupaba los datos y asignaba grupos a docentes equivocados, aunque el contexto era correcto. Ahora la respuesta es exacta, tarda menos de 1 s y no ocupa el permiso de generación. No reintroducir la redacción de horarios con IA sin una nueva decisión del usuario.
+
+Sin coincidencias, la respuesta esperada sigue siendo `No encontre informacion publicada para tu perfil sobre ese tema.` En ese caso no se llama al modelo. No confundir esa respuesta con fallo de Ollama ni insertar publicaciones automáticamente para evitarla. Con la base local actual, «¿qué noticias hay?» produce esa respuesta; «horario del grupo 1CM10» devuelve el horario.
 
 La configuración explícita usa `llama3.2:3b`; el controlador tiene un respaldo `llama3` si no se configura modelo. Mantener coherencia entre modelo descargado y configurado.
 
@@ -379,14 +391,14 @@ Estos son hallazgos documentales y requisitos a cotejar, no confirmación de imp
 
 Pendientes confirmados o no acreditados por las fuentes revisadas:
 
-1. Prueba completa del asistente con login normal y fuentes autorizadas, preservando el estado de la base solicitada.
+1. Prueba completa del asistente con login normal. **Hecha el 7 nov. 2026 con el Administrador**: horario de grupo, búsqueda de materia, catálogo, perfil, «mis materias» sin resultado para Administrador y publicaciones vacías. **Pendiente:** «mis materias» con una cuenta Alumno real (requiere crear datos; hacerlo en una copia aislada o con autorización) y publicaciones reales redactadas por Ollama.
 2. Entrega privada de una BD compatible y prueba real en el equipo del compañero; o diseño de instalador completo sin datos personales si el usuario elige esa vía.
 3. Diff completo local–VPS con capturas actuales, sin confundir igualdad de conteos con igualdad de datos.
 4. Revisión de vulnerabilidades reportadas y validación de las correcciones necesarias.
 5. Reconciliar documentación antigua y requisitos de tesis con comportamiento real.
 6. Validación del entorno final: SMTP, HTTPS, adjuntos, permisos, rendimiento de Ollama, respaldos/restauración y versión efectivamente desplegada.
 
-Ampliar el chatbot a materias/horarios es una **posible mejora**, no un trabajo ya realizado ni una nueva orden del usuario.
+La ampliación del chatbot a materias, horarios, catálogo, mis materias y perfil **ya se realizó** (ver sección 11).
 
 Al retomar:
 

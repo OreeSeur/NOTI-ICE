@@ -43,9 +43,24 @@ La conexion y los secretos siguen siendo privados: no se incluyen en estos archi
 
 ## Que se puede comprobar con la base vacia
 
-Actualmente el asistente recupera solamente noticias, eventos y documentos autorizados para el usuario. No consulta el catalogo de materias ni los horarios.
+El asistente usa dos tipos de fuentes:
 
-Con esas publicaciones vacias, la respuesta esperada es `No encontre informacion publicada para tu perfil sobre ese tema.` En ese caso la API no llama al modelo: no es una falla de Ollama. No se agregan publicaciones automaticamente para hacer pruebas.
+- **Noticias, eventos y documentos** autorizados por el filtro de audiencia: Ollama redacta la respuesta.
+- **Datos academicos**: horario por grupo, busqueda de materia o docente, catalogo por plan/semestre, perfil propio y, solo para Alumno, sus materias seleccionadas. Se responden con el texto exacto de la base, **sin llamar a Ollama**, para no mezclar grupos ni docentes. Aplican las mismas reglas de rol que `/api/oferta-academica`, `/api/catalogo-academico` y `/mis-materias`.
+
+Con las publicaciones vacias, «¿Que noticias hay?» responde `No encontre informacion publicada para tu perfil sobre ese tema.` En ese caso la API no llama al modelo: no es una falla de Ollama. No se agregan publicaciones automaticamente para hacer pruebas.
+
+Preguntas que funcionan con la base local actual:
+
+| Pregunta | Resultado esperado |
+|---|---|
+| `¿Cual es el horario del grupo 1CM10?` | Materias, dias, horas, aulas y docentes del grupo |
+| `¿Quien imparte Mecanica Newtoniana y en que grupos?` | Primeros 5 grupos con docente y la lista del resto |
+| `¿Que materias hay en primer semestre del plan 2024?` | Materias del catalogo de ese semestre |
+| `¿Cual es mi rol segun mi perfil?` | Nombre, rol, carrera y semestre |
+| `¿Cuales son mis materias?` | Alumno: sus selecciones. Administrador/Docente: sin resultados |
+
+La unica forma de comprobar ahora la generacion con Ollama es una publicacion autorizada, o la prueba directa siguiente.
 
 Para comprobar directamente la generacion de Ollama sin alterar MySQL:
 

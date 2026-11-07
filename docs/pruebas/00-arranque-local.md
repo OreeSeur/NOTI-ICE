@@ -95,6 +95,9 @@ variables `VITE_*`.
 - El asistente aparece tras iniciar sesión. Sin publicaciones responde
   «No encontre informacion publicada para tu perfil sobre ese tema.»; no es una falla
   de Ollama.
+- El asistente también responde horarios por grupo, materias y docentes, catálogo,
+  perfil y, para Alumno, sus materias seleccionadas (por ejemplo «horario del grupo
+  1CM10»). Esas respuestas salen directo de la base, sin Ollama.
 
 ## 8. Problemas frecuentes
 
