@@ -14,7 +14,7 @@ ESIME Zacatenco, Instituto Politecnico Nacional.
 ## Estado
 
 Para probar el asistente con Ollama local, consultar
-[la guia de pruebas locales](docs/OLLAMA_LOCAL.md).
+[la guia de pruebas locales](docs/pruebas/02-pruebas-locales-ollama.md).
 
 Proyecto en proceso de auditoria y estabilizacion.
 

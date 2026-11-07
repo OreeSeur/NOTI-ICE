@@ -78,17 +78,17 @@ No utilizar credenciales reales en datos simulados.
 
 ## Documentación
 
-La documentación técnica se encuentra en `docs/`:
+La documentación técnica se encuentra en `../docs/`:
 
-- `docs/indice.md`
-- `docs/frontend-arquitectura.md`
-- `docs/roles-y-permisos.md`
-- `docs/flujos-frontend.md`
-- `docs/flujo-academico.md`
-- `docs/checklist-pruebas-frontend.md`
-- `docs/frontend-api-ready.md`
-- `docs/frontend-error-handling.md`
-- `docs/identidad-grafica-ipn.md`
+- `../docs/README.md`
+- `../docs/frontend/01-arquitectura.md`
+- `../docs/frontend/02-roles-y-permisos.md`
+- `../docs/frontend/03-flujos-de-uso.md`
+- `../docs/frontend/04-flujo-academico.md`
+- `../docs/pruebas/01-checklist-pruebas-frontend.md`
+- `../docs/frontend/05-preparacion-api.md`
+- `../docs/frontend/06-errores-carga-y-permisos.md`
+- `../docs/frontend/07-identidad-grafica-ipn.md`
 
 ## Identidad gráfica
 
@@ -99,7 +99,7 @@ El frontend incluye una aplicación mínima y segura de criterios visuales del I
 - Variables CSS para colores institucionales.
 - Sin modificaciones estructurales al layout, sidebar o topbar.
 
-Consulta `docs/identidad-grafica-ipn.md` para más detalles.
+Consulta `../docs/frontend/07-identidad-grafica-ipn.md` para más detalles.
 
 ## Estado actual
 

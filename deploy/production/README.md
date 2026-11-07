@@ -85,7 +85,7 @@ infraestructura. Los cambios solo deben integrarse a la rama estable tras revisi
 
 ## Persistencia, respaldos y recuperacion
 
-- Consultar [BACKUPS_AND_RECOVERY.md](BACKUPS_AND_RECOVERY.md) antes de migrar
+- Consultar [01-respaldos-y-recuperacion.md](../../docs/despliegue/01-respaldos-y-recuperacion.md) antes de migrar
   archivos o planificar una restauracion. Son instrucciones, no operaciones ejecutadas.
 - Los respaldos incluyen dos elementos: MySQL y el directorio privado de adjuntos.
   Mantener copias externas cifradas; un respaldo solo en el mismo VPS no protege
