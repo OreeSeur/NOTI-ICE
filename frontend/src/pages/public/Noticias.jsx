@@ -24,7 +24,7 @@ import { matchesSearch } from "../../utils/search";
 export const Noticias = () => {
   const { noticias } = useNoticias();
   const { hasRole } = useAuth();
-  const puedeCrear = hasRole([ROLES.ADMIN]);
+  const puedeCrear = hasRole([ROLES.ADMIN, ROLES.DOCENTE]);
   const [busqueda, setBusqueda] = useState("");
 
   const noticiasFiltrados = useMemo(

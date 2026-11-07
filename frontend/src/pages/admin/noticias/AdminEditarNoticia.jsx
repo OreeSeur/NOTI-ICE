@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { useAuth } from "../../../context/auth/useAuth";
+import { ROLES } from "../../../constants/roles";
 import { useNoticias } from "../../../context/noticias/useNoticias";
 import { useToast } from "../../../context/toast/useToast";
 import { NoticiaForm } from "../../../components/noticias/NoticiaForm";
@@ -14,7 +16,7 @@ import {
 import { normalizeAudience } from "../../../utils/audience";
 
 // Se monta SOLO cuando la noticia ya llegó del servidor (así no queda vacío al recargar la página)
-const EditarNoticiaForm = ({ noticia }) => {
+const EditarNoticiaForm = ({ noticia, volverA }) => {
   const navigate = useNavigate();
 
   const { editarNoticia } = useNoticias();
@@ -69,7 +71,7 @@ const EditarNoticiaForm = ({ noticia }) => {
     try {
       await editarNoticia(noticia.id, datosNormalizados);
       success("Noticia actualizada correctamente");
-      navigate(ROUTES.ADMIN_NOTICIAS);
+      navigate(volverA);
     } catch (err) {
       error(err.message || "No se pudo actualizar la noticia");
     }
@@ -101,10 +103,15 @@ const EditarNoticiaForm = ({ noticia }) => {
   );
 };
 
+// Sirve para dos rutas: /admin/noticias/editar/:id (Administrador)
+// y /noticias/editar/:id (Docente, solo sobre sus propias noticias).
 export const AdminEditarNoticia = () => {
   const { id } = useParams();
+  const { user, hasRole } = useAuth();
   const { noticias, loading } = useNoticias();
 
+  const esAdmin = hasRole([ROLES.ADMIN]);
+  const volverA = esAdmin ? ROUTES.ADMIN_NOTICIAS : ROUTES.DOCENTE_PUBLICACIONES;
   const noticia = noticias.find((item) => mismoId(item.id, id));
 
   if (loading) {
@@ -123,5 +130,19 @@ export const AdminEditarNoticia = () => {
     );
   }
 
-  return <EditarNoticiaForm key={noticia.id} noticia={noticia} />;
+  // Solo orienta al usuario: el backend responde 403 si no es el autor.
+  if (!esAdmin && String(noticia.idUsuario) !== String(user?.id)) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-red-600 font-bold text-xl">
+          Solo puedes editar las noticias que tú publicaste
+        </h2>
+        <Link to={volverA} className="text-[#6F1D46] underline dark:text-pink-200">
+          Volver a mis publicaciones
+        </Link>
+      </section>
+    );
+  }
+
+  return <EditarNoticiaForm key={noticia.id} noticia={noticia} volverA={volverA} />;
 };

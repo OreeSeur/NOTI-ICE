@@ -6,7 +6,6 @@ import { EmptyState } from "../../components/common/EmptyState";
 import { PageHeader } from "../../components/common/PageHeader";
 import { StatusBadge } from "../../components/common/StatusBadge";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
-import { ROLES } from "../../constants/roles";
 import { ROUTES, buildRoute } from "../../constants/routes";
 import { useAuth } from "../../context/auth/useAuth";
 import { useNoticias } from "../../context/noticias/useNoticias";
@@ -44,16 +43,16 @@ const getRutaVer = (item) => {
   return buildRoute(ROUTES.DOCUMENTO_DETALLE, { id: item.id });
 };
 
-// Editar: las noticias se editan en administración (solo las publica el Administrador);
-// eventos y documentos tienen ruta propia para que el docente edite lo suyo.
+// Noticias, eventos y documentos tienen ruta propia para que el docente edite lo suyo
+// (el backend vuelve a comprobar que sea el autor).
 const getRutaEditar = (item) => {
-  if (item.tipoPublicacion === "noticia") return buildRoute(ROUTES.ADMIN_NOTICIAS_EDITAR, { id: item.id });
+  if (item.tipoPublicacion === "noticia") return buildRoute(ROUTES.NOTICIAS_EDITAR, { id: item.id });
   if (item.tipoPublicacion === "evento") return buildRoute(ROUTES.EVENTOS_EDITAR, { id: item.id });
   return buildRoute(ROUTES.DOCUMENTOS_EDITAR, { id: item.id });
 };
 
 export const DocentePublicaciones = () => {
-  const { user, hasRole } = useAuth();
+  const { user } = useAuth();
   const { noticias, eliminarNoticia, loading: cargandoNoticias } = useNoticias();
   const { eventos, eliminarEvento, loading: cargandoEventos } = useEventos();
   const { documentos, eliminarDocumento, loading: cargandoDocumentos } = useDocumentos();
@@ -62,7 +61,6 @@ export const DocentePublicaciones = () => {
   const [filtro, setFiltro] = useState("todas");
   const [porEliminar, setPorEliminar] = useState(null);
 
-  const esAdmin = hasRole([ROLES.ADMIN]);
   const cargando = cargandoNoticias || cargandoEventos || cargandoDocumentos;
 
   // "Mías" = las que yo publiqué. El autor viene guardado desde el backend (idUsuario).
@@ -92,7 +90,7 @@ export const DocentePublicaciones = () => {
 
   const filtros = [
     { value: "todas", label: "Todas" },
-    ...(esAdmin ? [{ value: "noticia", label: TIPOS.noticia.plural }] : []),
+    { value: "noticia", label: TIPOS.noticia.plural },
     { value: "evento", label: TIPOS.evento.plural },
     { value: "documento", label: TIPOS.documento.plural },
   ];
@@ -124,15 +122,13 @@ export const DocentePublicaciones = () => {
       />
 
       <div className="flex flex-wrap gap-3">
-        {esAdmin && (
-          <Link
-            to={ROUTES.NOTICIAS_NUEVO}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#6F1D46] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            <Plus size={16} />
-            Nueva noticia
-          </Link>
-        )}
+        <Link
+          to={ROUTES.NOTICIAS_NUEVO}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#6F1D46] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          <Plus size={16} />
+          Nueva noticia
+        </Link>
         <Link
           to={ROUTES.EVENTOS_NUEVO}
           className="inline-flex items-center gap-2 rounded-xl bg-[#6F1D46] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"

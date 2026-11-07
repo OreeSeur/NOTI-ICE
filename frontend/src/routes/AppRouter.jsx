@@ -213,7 +213,7 @@ return ( <Routes>
   <Route
     path={ROUTES.NOTICIAS_NUEVO}
     element={
-      <RoleRoute roles={[ROLES.ADMIN]}>
+      <RoleRoute roles={[ROLES.ADMIN, ROLES.DOCENTE]}>
         <Layout>
           <NoticiaNueva />
         </Layout>
@@ -244,6 +244,17 @@ return ( <Routes>
   />
 
   {/* Editar lo propio: el Docente edita lo que él publicó (la pantalla valida que sea suyo) */}
+  <Route
+    path={ROUTES.NOTICIAS_EDITAR}
+    element={
+      <RoleRoute roles={[ROLES.ADMIN, ROLES.DOCENTE]}>
+        <Layout>
+          <AdminEditarNoticia />
+        </Layout>
+      </RoleRoute>
+    }
+  />
+
   <Route
     path={ROUTES.EVENTOS_EDITAR}
     element={

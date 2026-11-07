@@ -10,6 +10,7 @@ export const ROUTES = Object.freeze({
   DOCENTE_MATERIAS: "/docente/materias",
   NOTICIAS: "/noticias",
   NOTICIAS_NUEVO: "/noticias/nuevo",
+  NOTICIAS_EDITAR: "/noticias/editar/:id",
   NOTICIA_DETALLE: "/noticias/:id",
   EVENTOS: "/eventos",
   EVENTOS_NUEVO: "/eventos/nuevo",

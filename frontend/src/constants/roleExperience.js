@@ -95,10 +95,10 @@ export const ROLE_QUICK_ACTIONS = Object.freeze({
   ],
   [ROLES.DOCENTE]: [
     {
-      title: "Noticias docentes",
-      description: "Comunicados clave",
+      title: "Nueva noticia",
+      description: "Publicar un comunicado",
       icon: Megaphone,
-      path: ROUTES.NOTICIAS,
+      path: ROUTES.NOTICIAS_NUEVO,
     },
     {
       title: "Eventos académicos",
