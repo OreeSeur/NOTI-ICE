@@ -21,12 +21,17 @@ namespace PortalNoticiasAPI.Controllers
             _audiencias = audiencias;
         }
 
+        // Mismo criterio que NoticiasController: audiencia, o ser el autor de la noticia.
+        private bool PuedeVerNoticia(Noticia n, Usuario? usuario) =>
+            (usuario is not null && n.IdUsuario == usuario.IdUsuario) ||
+            _audiencias.PuedeVer(n.AudienciaJson, usuario);
+
         [HttpGet("porNoticia/{idNoticia}")]
         public async Task<ActionResult<IEnumerable<ComentarioDto>>> GetComentariosPorNoticia(int idNoticia)
         {
             var noticia = await _context.Noticias.FirstOrDefaultAsync(n => n.IdNoticia == idNoticia && n.Activo);
-            if (noticia == null || !_audiencias.PuedeVer(noticia.AudienciaJson,
-                    await _audiencias.UsuarioActualAsync(User))) return NotFound();
+            if (noticia == null || !PuedeVerNoticia(noticia, await _audiencias.UsuarioActualAsync(User)))
+                return NotFound();
 
             var comentarios = await _context.NoticiasComentarios
                 .Include(nc => nc.Comentario)
@@ -52,8 +57,7 @@ namespace PortalNoticiasAPI.Controllers
         public async Task<ActionResult<ComentarioDto>> CrearComentario(ComentarioCreateDto dto)
         {
             var noticia = await _context.Noticias.FirstOrDefaultAsync(n => n.IdNoticia == dto.IdNoticia && n.Activo);
-            if (noticia == null || !_audiencias.PuedeVer(noticia.AudienciaJson,
-                    await _audiencias.UsuarioActualAsync(User)))
+            if (noticia == null || !PuedeVerNoticia(noticia, await _audiencias.UsuarioActualAsync(User)))
                 return NotFound(new { mensaje = "La noticia no está disponible" });
 
             // La identidad del autor se obtiene del JWT, nunca del IdUsuario enviado por el cliente.

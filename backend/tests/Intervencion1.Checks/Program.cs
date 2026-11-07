@@ -990,6 +990,113 @@ await Caso("Solicitudes: destinos del Docente son solo los suyos; el Administrad
         "mis solicitudes: " + mias.Count);
 });
 
+// ------------------------------------------- Noticias publicadas y editadas por docentes
+NoticiaCreateDto NuevaNoticia(string titulo, string rol = "todos", List<int>? unidades = null) => new()
+{
+    Titulo = titulo,
+    Contenido = "Contenido de prueba.",
+    FechaPublicacion = DateTime.Today,
+    Audiencia = new AudienciaDto { Roles = new() { rol }, UnidadesOferta = unidades ?? new() }
+};
+
+async Task<int> CrearNoticiaComo(PortalNoticiasContext db, int idUsuario, string rolJwt, NoticiaCreateDto dto)
+{
+    var r = await Fabrica.Noticias(db, H.Principal(idUsuario, rolJwt)).CrearNoticia(dto);
+    H.Afirmar(H.Estado(r) == 201, $"crear noticia: {H.Estado(r)} {H.Mensaje(H.Valor(r))}");
+    return ((NoticiaDto)H.Valor(r)!).IdNoticia;
+}
+
+NoticiaUpdateDto Cambio(string titulo) => new()
+{
+    Titulo = titulo, Contenido = "Editada.", FechaPublicacion = DateTime.Today, Audiencia = new AudienciaDto()
+};
+
+await Caso("Noticias: crear, editar y eliminar admiten Administrador y Docente", () =>
+{
+    foreach (var m in new[] { "CrearNoticia", "ActualizarNoticia", "EliminarNoticia" })
+    {
+        var roles = typeof(NoticiasController).GetMethod(m)!.GetCustomAttribute<AuthorizeAttribute>()?.Roles;
+        H.Afirmar(roles == "Administrador,Docente", $"{m}: {roles}");
+    }
+    return Task.CompletedTask;
+});
+
+await Caso("Noticias: el Docente publica y la autoría sale del JWT, no del cuerpo", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var dto = NuevaNoticia("Aviso docente");
+    dto.IdUsuario = BaseDePrueba.IdAdminA; // intento de suplantar autoría
+    var id = await CrearNoticiaComo(db, BaseDePrueba.IdDocente, "Docente", dto);
+    await using var ctx = b.NuevoContexto();
+    H.Afirmar((await ctx.Noticias.SingleAsync(n => n.IdNoticia == id)).IdUsuario == BaseDePrueba.IdDocente, "autor incorrecto");
+});
+
+await Caso("Noticias: el Docente edita y elimina solo las suyas; el Administrador cualquiera y conserva al autor", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var id = await CrearNoticiaComo(db, BaseDePrueba.IdDocente, "Docente", NuevaNoticia("Original"));
+    var otroDocente = H.Principal(OfertaDePrueba.IdOtroDocente, "Docente");
+
+    var ajena = await Fabrica.Noticias(db, otroDocente).ActualizarNoticia(id, Cambio("Intrusa"));
+    H.Afirmar(H.Estado(ajena) == 403, $"editar ajena: {H.Estado(ajena)}");
+    var borrarAjena = await Fabrica.Noticias(db, otroDocente).EliminarNoticia(id);
+    H.Afirmar(H.Estado(borrarAjena) == 403, $"eliminar ajena: {H.Estado(borrarAjena)}");
+
+    var propia = await Fabrica.Noticias(db, H.Principal(BaseDePrueba.IdDocente, "Docente")).ActualizarNoticia(id, Cambio("Editada por autor"));
+    H.Afirmar(H.Estado(propia) == 204, $"editar propia: {H.Estado(propia)}");
+    var admin = await Fabrica.Noticias(db, H.Principal(BaseDePrueba.IdAdminA, "Administrador")).ActualizarNoticia(id, Cambio("Editada por admin"));
+    H.Afirmar(H.Estado(admin) == 204, $"editar como admin: {H.Estado(admin)}");
+    await using (var ctx = b.NuevoContexto())
+    {
+        var n = await ctx.Noticias.SingleAsync(x => x.IdNoticia == id);
+        H.Afirmar(n.Titulo == "Editada por admin" && n.IdUsuario == BaseDePrueba.IdDocente, "no conservó autor o título");
+    }
+
+    var borrar = await Fabrica.Noticias(db, H.Principal(BaseDePrueba.IdDocente, "Docente")).EliminarNoticia(id);
+    H.Afirmar(H.Estado(borrar) == 204, $"eliminar propia: {H.Estado(borrar)}");
+});
+
+await Caso("Noticias: el autor ve su noticia dirigida a otro rol (y sus comentarios); otro Docente no", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var id = await CrearNoticiaComo(db, BaseDePrueba.IdDocente, "Docente", NuevaNoticia("Solo alumnos", "Alumno"));
+
+    async Task<int?> Ver(int idUsuario, string rol)
+    {
+        await using var ctx = b.NuevoContexto();
+        return H.Estado(await Fabrica.Noticias(ctx, H.Principal(idUsuario, rol)).GetNoticia(id));
+    }
+    H.Afirmar(await Ver(BaseDePrueba.IdDocente, "Docente") == 200, "el autor no la ve");
+    H.Afirmar(await Ver(OfertaDePrueba.IdOtroDocente, "Docente") == 404, "otro docente la ve");
+    H.Afirmar(await Ver(BaseDePrueba.IdAlumno, "Alumno") == 200, "el alumno destinatario no la ve");
+
+    await using var c1 = b.NuevoContexto();
+    var comentariosAutor = await Fabrica.Comentarios(c1, H.Principal(BaseDePrueba.IdDocente, "Docente")).GetComentariosPorNoticia(id);
+    H.Afirmar(H.Estado(comentariosAutor) == 200, $"comentarios para el autor: {H.Estado(comentariosAutor)}");
+    await using var c2 = b.NuevoContexto();
+    var comentariosOtro = await Fabrica.Comentarios(c2, H.Principal(OfertaDePrueba.IdOtroDocente, "Docente")).GetComentariosPorNoticia(id);
+    H.Afirmar(H.Estado(comentariosOtro) == 404, $"comentarios para otro docente: {H.Estado(comentariosOtro)}");
+});
+
+await Caso("Noticias: el Docente solo destina noticias a sus materias aprobadas", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var calculo = await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL");
+    var docente = H.Principal(BaseDePrueba.IdDocente, "Docente");
+    var sin = await Fabrica.Noticias(db, docente).CrearNoticia(NuevaNoticia("Sin aprobación", unidades: new() { calculo }));
+    H.Afirmar(H.Estado(sin) == 400, $"sin aprobación: {H.Estado(sin)}");
+
+    var s = await Solicitar(db, BaseDePrueba.IdDocente, calculo);
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+    await using var ctx = b.NuevoContexto();
+    var con = await Fabrica.Noticias(ctx, docente).CrearNoticia(NuevaNoticia("Con aprobación", unidades: new() { calculo }));
+    H.Afirmar(H.Estado(con) == 201, $"con aprobación: {H.Estado(con)} {H.Mensaje(H.Valor(con))}");
+});
+
 Console.WriteLine();
 Console.WriteLine($"Resultado: {superadas} superadas, {fallidas.Count} fallidas.");
 foreach (var f in fallidas) Console.WriteLine("  - " + f);
@@ -1054,6 +1161,16 @@ static class Fabrica
 
     public static AuthController Auth(PortalNoticiasContext db, ClaimsPrincipal? usuario = null) =>
         H.ConUsuario(new AuthController(db, new TokenService(Jwt), Correo(), Jwt), usuario);
+
+    // SMTP sin configurar: NotificarPublicacion termina sin enviar ni usar el proveedor de servicios.
+    public static NoticiasController Noticias(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
+        H.ConUsuario(new NoticiasController(db,
+            new NotificacionCorreoService(new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+                Correo(), H.Config(), NullLogger<NotificacionCorreoService>.Instance),
+            new AudienciaAccesoService(db)), usuario);
+
+    public static ComentariosController Comentarios(PortalNoticiasContext db, ClaimsPrincipal? usuario) =>
+        H.ConUsuario(new ComentariosController(db, new AudienciaAccesoService(db)), usuario);
 
     public static SolicitudesDocentesController Solicitudes(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
         H.ConUsuario(new SolicitudesDocentesController(db), usuario);

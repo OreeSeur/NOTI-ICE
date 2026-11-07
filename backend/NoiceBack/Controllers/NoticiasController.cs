@@ -26,6 +26,18 @@ namespace PortalNoticiasAPI.Controllers
             _notificaciones = notificaciones;
         }
 
+        private int? GetUserId() =>
+            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+
+        // El Administrador puede modificar cualquier noticia; el Docente, solo las suyas.
+        private bool PuedeModificar(Noticia n) =>
+            User.IsInRole("Administrador") || n.IdUsuario == GetUserId();
+
+        // El autor autenticado puede consultar sus propias noticias aunque no sea su audiencia.
+        private bool PuedeVerNoticia(Noticia n, Usuario? usuario) =>
+            (usuario is not null && n.IdUsuario == usuario.IdUsuario) ||
+            _audiencias.PuedeVer(n.AudienciaJson, usuario);
+
         // Convierte la entidad (con AudienciaJson como texto) al DTO que consume el frontend
         private static NoticiaDto ToDto(Noticia n)
         {
@@ -69,7 +81,7 @@ namespace PortalNoticiasAPI.Controllers
                 .ToListAsync();
 
             var usuario = await _audiencias.UsuarioActualAsync(User);
-            return Ok(noticias.Where(n => _audiencias.PuedeVer(n.AudienciaJson, usuario))
+            return Ok(noticias.Where(n => PuedeVerNoticia(n, usuario))
                 .Select(ToDto).ToList());
         }
 
@@ -85,13 +97,13 @@ namespace PortalNoticiasAPI.Controllers
                 return NotFound(new { mensaje = $"No se encontró la noticia con id {id}" });
 
             var usuario = await _audiencias.UsuarioActualAsync(User);
-            if (!_audiencias.PuedeVer(noticia.AudienciaJson, usuario)) return NotFound();
+            if (!PuedeVerNoticia(noticia, usuario)) return NotFound();
 
             return Ok(ToDto(noticia));
         }
 
         [HttpPost]
-        [Authorize(Roles = "Administrador")]
+        [Authorize(Roles = "Administrador,Docente")]
         public async Task<ActionResult<NoticiaDto>> CrearNoticia(NoticiaCreateDto dto)
         {
             // La autoria se obtiene del JWT, no de un IdUsuario manipulable por el cliente.
@@ -143,12 +155,16 @@ namespace PortalNoticiasAPI.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Administrador")]
+        [Authorize(Roles = "Administrador,Docente")]
         public async Task<IActionResult> ActualizarNoticia(int id, NoticiaUpdateDto dto)
         {
             var noticia = await _context.Noticias.FindAsync(id);
             if (noticia == null || !noticia.Activo)
                 return NotFound(new { mensaje = $"No se encontró la noticia con id {id}" });
+
+            // El autor original se conserva aunque edite un Administrador.
+            if (!PuedeModificar(noticia))
+                return StatusCode(403, new { mensaje = "Solo puedes modificar las noticias que tú publicaste" });
 
             if (dto.IdCategoria.HasValue)
             {
@@ -175,12 +191,15 @@ namespace PortalNoticiasAPI.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Administrador")]
+        [Authorize(Roles = "Administrador,Docente")]
         public async Task<IActionResult> EliminarNoticia(int id)
         {
             var noticia = await _context.Noticias.FindAsync(id);
             if (noticia == null || !noticia.Activo)
                 return NotFound(new { mensaje = $"No se encontró la noticia con id {id}" });
+
+            if (!PuedeModificar(noticia))
+                return StatusCode(403, new { mensaje = "Solo puedes eliminar las noticias que tú publicaste" });
 
             noticia.Activo = false;
             await _context.SaveChangesAsync();
