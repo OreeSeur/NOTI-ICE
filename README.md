@@ -1,4 +1,4 @@
-﻿# NOTI ICE
+# NOTI ICE
 
 Portal de noticias academicas e institucionales
 para Ingenieria en Comunicaciones y Electronica,
@@ -12,6 +12,9 @@ ESIME Zacatenco, Instituto Politecnico Nacional.
 - docs: documentacion tecnica
 
 ## Estado
+
+Para probar el asistente con Ollama local, consultar
+[la guia de pruebas locales](docs/OLLAMA_LOCAL.md).
 
 Proyecto en proceso de auditoria y estabilizacion.
 
