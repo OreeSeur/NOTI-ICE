@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { ROUTES } from "../../constants/routes";
 import { isApiDataSource } from "../../config/appConfig";
 import {
@@ -112,11 +113,12 @@ export const DocenteMaterias = () => {
     }
   };
 
+  // Confirmación con el modal del portal (window.confirm puede estar bloqueado en el navegador).
+  const [porCancelar, setPorCancelar] = useState(null);
+
   const cancelar = async (s) => {
-    const pregunta = s.estado === ESTADOS_SOLICITUD.APROBADA
-      ? `¿Dejar ${describirUnidad(s)}? Ya no podrás publicar para sus alumnos.`
-      : `¿Retirar la solicitud de ${describirUnidad(s)}?`;
-    if (enOperacion !== null || !window.confirm(pregunta)) return;
+    setPorCancelar(null);
+    if (enOperacion !== null) return;
     setEnOperacion(`s-${s.idSolicitud}`);
     setAviso({ tipo: "", texto: "" });
     try {
@@ -199,7 +201,7 @@ export const DocenteMaterias = () => {
               {vigente(s) && (
                 <button
                   type="button"
-                  onClick={() => cancelar(s)}
+                  onClick={() => setPorCancelar(s)}
                   disabled={enOperacion !== null}
                   className={`${boton} mt-3 border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700`}
                 >
@@ -273,6 +275,17 @@ export const DocenteMaterias = () => {
           })}
         </div>
       </section>
+
+      <ConfirmModal
+        isOpen={Boolean(porCancelar)}
+        title={porCancelar?.estado === ESTADOS_SOLICITUD.APROBADA ? "Dejar materia" : "Retirar solicitud"}
+        message={!porCancelar ? "" : porCancelar.estado === ESTADOS_SOLICITUD.APROBADA
+          ? `¿Dejar ${describirUnidad(porCancelar)}? Ya no podrás publicar para sus alumnos; para recuperarla tendrás que solicitarla de nuevo.`
+          : `¿Retirar la solicitud de ${describirUnidad(porCancelar)}?`}
+        confirmLabel={porCancelar?.estado === ESTADOS_SOLICITUD.APROBADA ? "Dejar materia" : "Retirar"}
+        onConfirm={() => cancelar(porCancelar)}
+        onCancel={() => setPorCancelar(null)}
+      />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AlertTriangle, CalendarDays, Plus } from "lucide-react";
 
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { isApiDataSource } from "../../config/appConfig";
 import { ROUTES } from "../../constants/routes";
 import { obtenerMisMateriasOferta, quitarMateriaOferta } from "../../services/ofertaAcademicaService";
@@ -150,9 +151,13 @@ export const MisMateriasOferta = () => {
   const empalmes = useMemo(() => detectarEmpalmes(sesiones), [sesiones]);
   const sinHorario = lista.filter((m) => !m.sesiones || m.sesiones.length === 0);
 
+  // Confirmación con el modal del portal: los diálogos nativos (window.confirm) pueden estar
+  // bloqueados en algunos navegadores y devolver "Cancelar" sin mostrarse.
+  const [porQuitar, setPorQuitar] = useState(null);
+
   const quitar = async (materia) => {
+    setPorQuitar(null);
     if (quitando !== null) return;
-    if (!window.confirm(`¿Quitar ${nombreMateria(materia)} (${materia.codigoGrupo}) de tus materias? Dejarás de recibir sus avisos.`)) return;
     setQuitando(materia.idUnidadOferta);
     setError("");
     try {
@@ -247,7 +252,7 @@ export const MisMateriasOferta = () => {
                 <button
                   type="button"
                   disabled={quitando !== null}
-                  onClick={() => quitar(materia)}
+                  onClick={() => setPorQuitar(materia)}
                   className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
                 >
                   {quitando === materia.idUnidadOferta ? "Quitando…" : "Quitar"}
@@ -264,6 +269,17 @@ export const MisMateriasOferta = () => {
           y no aparece{sinHorario.length === 1 ? "" : "n"} en la tabla.
         </p>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(porQuitar)}
+        title="Quitar materia"
+        message={porQuitar
+          ? `¿Quitar ${nombreMateria(porQuitar)} (${porQuitar.codigoGrupo}) de tus materias? Dejarás de ver su horario y de recibir sus avisos. Puedes volver a agregarla cuando quieras.`
+          : ""}
+        confirmLabel="Quitar"
+        onConfirm={() => quitar(porQuitar)}
+        onCancel={() => setPorQuitar(null)}
+      />
     </section>
   );
 };
