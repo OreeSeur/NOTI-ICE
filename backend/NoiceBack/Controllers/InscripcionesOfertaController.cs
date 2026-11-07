@@ -122,6 +122,86 @@ namespace PortalNoticiasAPI.Controllers
             return Ok(new { idUnidadOferta = dto.IdUnidadOferta, mensaje = "Materia agregada a tu perfil." });
         }
 
+        // POST /grupo { "idGrupoOferta": 12 }: agrega todas las unidades activas del grupo que el
+        // alumno aún no tenga (reactiva las dadas de baja). Nunca acepta un idUsuario del cliente.
+        [HttpPost("grupo")]
+        public async Task<IActionResult> AgregarGrupo([FromBody] AgregarGrupoOfertaDto dto)
+        {
+            var id = IdAlumno();
+            if (id <= 0 || !await AlumnoActivo(id)) return Forbid();
+            if (dto is null || dto.IdGrupoOferta <= 0)
+                return BadRequest(new { mensaje = "Selecciona un grupo válido." });
+
+            var ct = HttpContext.RequestAborted;
+            var grupo = await _context.OfertaGrupos.AsNoTracking()
+                .Where(g => g.IdGrupoOferta == dto.IdGrupoOferta && g.Activo && g.Periodo.Activo)
+                .Select(g => new { g.CodigoGrupo }).FirstOrDefaultAsync(ct);
+            if (grupo is null) return NotFound(new { mensaje = "No existe un grupo activo con ese identificador." });
+
+            var unidades = await _context.OfertaUnidades.AsNoTracking()
+                .Where(u => u.IdGrupoOferta == dto.IdGrupoOferta)
+                .Select(u => u.IdUnidadOferta).ToListAsync(ct);
+            if (unidades.Count == 0)
+                return Ok(new { agregadas = 0, yaTenias = 0, mensaje = "El grupo no tiene materias publicadas." });
+
+            var existentes = await _context.OfertaInscripcionesAlumnos
+                .Where(i => i.IdUsuario == id && unidades.Contains(i.IdUnidadOferta))
+                .ToListAsync(ct);
+            var ahora = DateTime.UtcNow;
+            var agregadas = 0;
+            foreach (var idUnidad in unidades)
+            {
+                var anterior = existentes.FirstOrDefault(i => i.IdUnidadOferta == idUnidad);
+                if (anterior?.Activo == true) continue;
+                if (anterior is null)
+                    _context.OfertaInscripcionesAlumnos.Add(new OfertaInscripcionAlumno
+                    {
+                        IdUsuario = id, IdUnidadOferta = idUnidad, FechaAlta = ahora, Activo = true
+                    });
+                else
+                {
+                    anterior.Activo = true;
+                    anterior.FechaBaja = null;
+                    anterior.FechaAlta = ahora;
+                }
+                agregadas++;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is MySqlException { Number: 1062 })
+            {
+                return Conflict(new { mensaje = "Tus materias cambiaron mientras se guardaban; vuelve a intentarlo." });
+            }
+
+            var yaTenias = unidades.Count - agregadas;
+            return Ok(new
+            {
+                agregadas,
+                yaTenias,
+                mensaje = agregadas == 0
+                    ? $"Ya tenías todas las materias del grupo {grupo.CodigoGrupo}."
+                    : $"Se agregaron {agregadas} materia(s) del grupo {grupo.CodigoGrupo}."
+            });
+        }
+
+        // DELETE sin identificador: da de baja todas las selecciones activas del alumno.
+        [HttpDelete]
+        public async Task<IActionResult> QuitarTodas()
+        {
+            var id = IdAlumno();
+            if (id <= 0 || !await AlumnoActivo(id)) return Forbid();
+
+            var quitadas = await _context.OfertaInscripcionesAlumnos
+                .Where(i => i.IdUsuario == id && i.Activo)
+                .ExecuteUpdateAsync(u => u
+                    .SetProperty(i => i.Activo, false)
+                    .SetProperty(i => i.FechaBaja, DateTime.UtcNow), HttpContext.RequestAborted);
+            return Ok(new { quitadas, mensaje = $"Se quitaron {quitadas} materia(s) de tu perfil." });
+        }
+
         [HttpDelete("{idUnidadOferta:int}")]
         public async Task<IActionResult> Quitar(int idUnidadOferta)
         {

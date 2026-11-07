@@ -10,6 +10,13 @@ namespace PortalNoticiasAPI.DTOs
         public int IdUnidadOferta { get; set; }
     }
 
+    // Agrega de una vez todas las materias y laboratorios publicados de un grupo de la oferta.
+    public sealed class AgregarGrupoOfertaDto
+    {
+        [Range(1, int.MaxValue)]
+        public int IdGrupoOferta { get; set; }
+    }
+
     public sealed class MisMateriasOfertaDto
     {
         public int IdUnidadOferta { get; set; }

@@ -1097,6 +1097,69 @@ await Caso("Noticias: el Docente solo destina noticias a sus materias aprobadas"
     H.Afirmar(H.Estado(con) == 201, $"con aprobación: {H.Estado(con)} {H.Mensaje(H.Valor(con))}");
 });
 
+// ------------------------------------------- Mis materias: grupo completo y quitar todas
+async Task<List<int>> ActivasDe(BaseDePrueba b, int idUsuario)
+{
+    await using var ctx = b.NuevoContexto();
+    return await ctx.OfertaInscripcionesAlumnos.Where(i => i.IdUsuario == idUsuario && i.Activo)
+        .Select(i => i.IdUnidadOferta).OrderBy(x => x).ToListAsync();
+}
+
+async Task<int> GrupoId(PortalNoticiasContext db, string codigo, bool activo = true) =>
+    await db.OfertaGrupos.Where(g => g.CodigoGrupo == codigo && g.Periodo.Activo == activo)
+        .Select(g => g.IdGrupoOferta).SingleAsync();
+
+await Caso("Mis materias: agregar grupo completo suma las que faltan y reactiva las dadas de baja", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var grupo = await GrupoId(db, "1CV11");
+    var otroAntes = await ActivasDe(b, OfertaDePrueba.IdOtroAlumno);
+    var r = await Fabrica.MisMaterias(db, H.Principal(BaseDePrueba.IdAlumno, "Alumno"))
+        .AgregarGrupo(new AgregarGrupoOfertaDto { IdGrupoOferta = grupo });
+    H.Afirmar(H.Estado(r) == 200, $"estado {H.Estado(r)} {H.Mensaje(H.Valor(r))}");
+    H.Afirmar(H.Campo(H.Valor(r), "agregadas") == "1" && H.Campo(H.Valor(r), "yaTenias") == "1",
+        $"agregadas={H.Campo(H.Valor(r), "agregadas")} yaTenias={H.Campo(H.Valor(r), "yaTenias")}");
+    var esperadas = new[] { await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL"), await UnidadId(db, "QUIMICA BASICA") }.OrderBy(x => x);
+    H.Afirmar((await ActivasDe(b, BaseDePrueba.IdAlumno)).SequenceEqual(esperadas), "no quedaron las dos materias del grupo");
+    H.Afirmar((await ActivasDe(b, OfertaDePrueba.IdOtroAlumno)).SequenceEqual(otroAntes), "cambió las materias de otro alumno");
+
+    await using var ctx = b.NuevoContexto();
+    var otraVez = await Fabrica.MisMaterias(ctx, H.Principal(BaseDePrueba.IdAlumno, "Alumno"))
+        .AgregarGrupo(new AgregarGrupoOfertaDto { IdGrupoOferta = grupo });
+    H.Afirmar(H.Campo(H.Valor(otraVez), "agregadas") == "0", "repetir agregó duplicados");
+});
+
+await Caso("Mis materias: no agrega grupos de un periodo inactivo ni para cuentas que no son Alumno", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var historico = await GrupoId(db, "1CV11", activo: false);
+    var r = await Fabrica.MisMaterias(db, H.Principal(BaseDePrueba.IdAlumno, "Alumno"))
+        .AgregarGrupo(new AgregarGrupoOfertaDto { IdGrupoOferta = historico });
+    H.Afirmar(H.Estado(r) == 404, $"periodo inactivo: {H.Estado(r)}");
+    var docente = await Fabrica.MisMaterias(db, H.Principal(BaseDePrueba.IdDocente, "Alumno"))
+        .AgregarGrupo(new AgregarGrupoOfertaDto { IdGrupoOferta = await GrupoId(db, "1CV12") });
+    H.Afirmar(docente is ForbidResult, "una cuenta Docente con JWT de Alumno pudo agregar");
+    var roles = typeof(InscripcionesOfertaController).GetCustomAttribute<AuthorizeAttribute>()?.Roles;
+    H.Afirmar(roles == "Alumno", "roles del controlador: " + roles);
+});
+
+await Caso("Mis materias: quitar todas da de baja solo las del alumno autenticado", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var otroAntes = await ActivasDe(b, OfertaDePrueba.IdOtroAlumno);
+    var r = await Fabrica.MisMaterias(db, H.Principal(BaseDePrueba.IdAlumno, "Alumno")).QuitarTodas();
+    H.Afirmar(H.Estado(r) == 200 && H.Campo(H.Valor(r), "quitadas") == "1", $"quitadas={H.Campo(H.Valor(r), "quitadas")}");
+    H.Afirmar((await ActivasDe(b, BaseDePrueba.IdAlumno)).Count == 0, "quedaron materias activas");
+    H.Afirmar((await ActivasDe(b, OfertaDePrueba.IdOtroAlumno)).SequenceEqual(otroAntes) && otroAntes.Count == 1,
+        "afectó a otro alumno");
+    await using var ctx = b.NuevoContexto();
+    H.Afirmar(await ctx.OfertaInscripcionesAlumnos.AnyAsync(i => i.IdUsuario == BaseDePrueba.IdAlumno && !i.Activo && i.FechaBaja != null),
+        "no registró la fecha de baja");
+});
+
 Console.WriteLine();
 Console.WriteLine($"Resultado: {superadas} superadas, {fallidas.Count} fallidas.");
 foreach (var f in fallidas) Console.WriteLine("  - " + f);
@@ -1171,6 +1234,9 @@ static class Fabrica
 
     public static ComentariosController Comentarios(PortalNoticiasContext db, ClaimsPrincipal? usuario) =>
         H.ConUsuario(new ComentariosController(db, new AudienciaAccesoService(db)), usuario);
+
+    public static InscripcionesOfertaController MisMaterias(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
+        H.ConUsuario(new InscripcionesOfertaController(db), usuario);
 
     public static SolicitudesDocentesController Solicitudes(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
         H.ConUsuario(new SolicitudesDocentesController(db), usuario);
