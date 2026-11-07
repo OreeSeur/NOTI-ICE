@@ -8,21 +8,22 @@ import { useNoticias } from "../../context/noticias/useNoticias";
 import { useEventos } from "../../context/eventos/useEventos";
 import { useDocumentos } from "../../context/documentos/useDocumentos";
 import {
-  MENSAJE_BIENVENIDA,
-  SUGERENCIAS,
+  mensajeBienvenida,
+  sugerenciasPara,
   responderPregunta,
 } from "../../services/chatbotService";
 
 // Pausa breve para que la respuesta no aparezca de golpe (se siente más natural)
 const PAUSA_ESCRIBIENDO_MS = 450;
 
-const mensajeInicial = { id: 0, rol: "bot", texto: MENSAJE_BIENVENIDA, enlaces: [] };
-
 // Parte visual y de conversación. Recibe los datos por props para poder
 // probarla y reutilizarla sin depender de los contextos.
 export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial = false }) => {
   const [abierto, setAbierto] = useState(abiertoInicial);
-  const [mensajes, setMensajes] = useState([mensajeInicial]);
+  const [mensajes, setMensajes] = useState(() => [
+    { id: 0, rol: "bot", texto: mensajeBienvenida(), enlaces: [] },
+  ]);
+  const sugerencias = sugerenciasPara(user);
   const [entrada, setEntrada] = useState("");
   const [escribiendo, setEscribiendo] = useState(false);
 
@@ -138,7 +139,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
           <p className="shrink-0 bg-amber-50 px-4 py-1.5 text-[11px] leading-snug text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
             {isMockDataSource()
               ? "Prototipo de demostración: respuestas mediante reglas, sin inteligencia artificial."
-              : "Asistente con inteligencia artificial: consulta publicaciones autorizadas de NOTI ICE."}
+              : "Asistente con inteligencia artificial: consulta publicaciones, materias y horarios autorizados para tu perfil. Verifica los datos importantes en el portal."}
           </p>
 
           <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto p-4" aria-live="polite">
@@ -155,7 +156,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
                   key={mensaje.id}
                   className="max-w-[95%] break-words [overflow-wrap:anywhere] rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                 >
-                  <p>{mensaje.texto}</p>
+                  <p className="whitespace-pre-line">{mensaje.texto}</p>
 
                   {mensaje.enlaces.length > 0 && (
                     <ul className="mt-2 space-y-2">
@@ -205,7 +206,7 @@ export const ChatPanel = ({ user, noticias, eventos, documentos, abiertoInicial 
           </div>
 
           <div className="flex shrink-0 flex-wrap gap-2 px-4 pb-3">
-            {SUGERENCIAS.map((sugerencia) => (
+            {sugerencias.map((sugerencia) => (
               <button
                 key={sugerencia}
                 type="button"

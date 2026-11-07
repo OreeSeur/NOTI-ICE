@@ -4,6 +4,7 @@ import { canReceiveItem } from "../utils/audience";
 import { getDocumentTitle } from "../utils/documentTypes";
 import { normalizeSearchText } from "../utils/search";
 import { ROUTES, buildRoute } from "../constants/routes";
+import { ROLES, normalizeRole } from "../constants/roles";
 
 // ============================================================================
 // Asistente de DEMOSTRACIÓN.
@@ -17,14 +18,34 @@ import { ROUTES, buildRoute } from "../constants/routes";
 // respuesta: { texto, enlaces: [{ clave, tipo, titulo, detalle, ruta }] }.
 // ============================================================================
 
-export const MENSAJE_BIENVENIDA =
+const MENSAJE_BIENVENIDA_DEMO =
   "Hola, soy el asistente del portal. Puedo ayudarte a encontrar noticias, eventos y documentos publicados para tu perfil.";
 
-export const SUGERENCIAS = [
+const MENSAJE_BIENVENIDA_API =
+  "Hola, soy el asistente del portal. Puedo ayudarte con noticias, eventos y documentos publicados para tu perfil, y con materias y horarios de los grupos.";
+
+export const mensajeBienvenida = () =>
+  isMockDataSource() ? MENSAJE_BIENVENIDA_DEMO : MENSAJE_BIENVENIDA_API;
+
+const SUGERENCIAS = [
   "¿Qué noticias hay?",
   "¿Qué eventos vienen?",
   "¿Qué documentos hay?",
 ];
+
+// Las sugerencias académicas solo existen con el backend real (el modo demo no las responde).
+// El backend vuelve a validar el rol: esto solo decide qué botones se muestran.
+export const sugerenciasPara = (user) => {
+  if (isMockDataSource()) return SUGERENCIAS;
+
+  const esAlumno = normalizeRole(user?.rol) === ROLES.ALUMNO;
+
+  return [
+    "¿Qué noticias hay?",
+    "¿Qué materias hay en primer semestre?",
+    esAlumno ? "¿Cuál es mi horario?" : "¿Qué eventos vienen?",
+  ];
+};
 
 const MAX_POR_TIPO = 3;
 
