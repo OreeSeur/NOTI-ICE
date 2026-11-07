@@ -138,6 +138,7 @@ Reglas esenciales:
 - Los adjuntos no se sirven como archivos estáticos públicos: descarga mediante API y validación de audiencia.
 - Las suscripciones/selecciones académicas del portal **no son inscripciones escolares oficiales del IPN**, aunque existan componentes con “Oficiales” en su nombre.
 - Las asignaciones de docentes publicadas en horarios no equivalen a cuentas de usuario ni acreditan por sí solas permisos para publicar.
+- **Solicitudes de docentes (7 nov. 2026):** un `Docente` solicita impartir una materia o laboratorio (`ofertaunidades`). Cualquier `Administrador` activo la aprueba, rechaza o revoca; gana la primera resolución, y rechazar o revocar exige motivo. Hay un solo docente aprobado por unidad, garantizado además por un índice único en la BD; al aprobar, las demás pendientes de esa unidad se rechazan. Solo una solicitud `Aprobada` permite al docente elegir esa unidad en `audiencia.unidadesOferta` al publicar eventos y documentos; el Docente sigue sin crear noticias. Esas publicaciones las ven los alumnos que agregaron la unidad, el docente aprobado y la administración (`AudienciaAccesoService`). No es una asignación oficial del IPN.
 
 ## 6. Funcionalidades y lugares de entrada
 
@@ -155,6 +156,7 @@ API destacada:
 | Catálogo por plan | `/api/catalogo-academico/materias` |
 | Oferta | `/api/oferta-academica/periodos`, `/grupos`, `/grupos/{codigoGrupo}`, `/buscar` bajo el mismo prefijo |
 | Selecciones del alumno | GET/POST `/api/oferta-academica/mis-materias`, DELETE con `/{idUnidadOferta}` |
+| Solicitudes de docentes | Docente: GET `/api/solicitudes-docentes/mias`, POST `/api/solicitudes-docentes`, DELETE `/{id}`. Administrador: GET `?estado=`, GET `/pendientes/total`, POST `/{id}/aprobar`, `/{id}/rechazar`, `/{id}/revocar`. Ambos: GET `/destinos` |
 | Asistente | POST `/api/chatbot` |
 
 Consultar los controladores y DTOs antes de cambiar contratos. `frontend/src/api/endpoints.js` no concentra necesariamente todos los endpoints de los servicios más recientes. No implementar `/auth/me` o `/avisos` solo porque aparecen en documentos antiguos.
@@ -182,6 +184,12 @@ La oferta contempla planes 2003/2024 y consulta de materias, grupos y horarios. 
 | Tipos de grupo antiguos | 1: `1CV1` |
 
 Se registraron vacías: `categorias`, `noticias`, `noticiasdocumentos`, `comentarios`, `noticiascomentarios`, `eventos`, `grupos`, `gruposalumnos`, `ofertainscripcionesalumnos`, `usuariospreferencias`, `notificacionesleidas`.
+
+**Cambios del 7 nov. 2026 (tarde), autorizados por el usuario en la base local:**
+- El usuario creó con `root` la tabla `ofertasolicitudesdocentes` (script `20261107_solicitudes_docentes_SOLO_PRUEBAS.sql`). Ahora son 23 tablas.
+- Para la prueba del flujo de solicitudes, el usuario creó dos cuentas de prueba: `docente.prueba@prueba.local` (Docente) y `alumno.prueba@prueba.local` (Alumno).
+- Durante la prueba se crearon: 1 selección del Alumno (1CM10 · Fundamentos de Programación, unidad 32), 2 solicitudes del Docente (una Aprobada y una Rechazada) y 1 evento titulado «PRUEBA - Asesoría de Fundamentos de Programación 1CM10».
+- Siguen pendientes de decisión del usuario: conservarlos, desactivarlos o borrarlos.
 
 `Computacion` y `Humanidades V`, ambas con identificador 1 en sus respectivas tablas, fueron eliminadas con autorización después de revisar relaciones. Se verificó la conservación del Administrador y la oferta. No volver a introducir esos ejemplos con una semilla antigua.
 
@@ -217,6 +225,7 @@ Clonar GitHub no crea MySQL ni copia usuarios o secretos. No se encontró un ins
 | `database/migraciones/PILOTO_preferencias_y_notificaciones_SOLO_PRUEBAS.sql` | Dos tablas dependientes de usuarios |
 | `backend/NoiceBack/Sql/20261018_oferta_academica_SOLO_PRUEBAS_NO_EJECUTAR.sql` | Seis tablas académicas; no es idempotente ni base completa |
 | `backend/NoiceBack/Sql/Fase8_Inscripciones_Oferta_PortalPruebas.sql` | Séptima tabla académica; no ejecutar sobre tabla existente |
+| `backend/NoiceBack/Sql/20261107_solicitudes_docentes_SOLO_PRUEBAS.sql` | Tabla `ofertasolicitudesdocentes` (`CREATE TABLE IF NOT EXISTS`, aditivo). **Debe aplicarse en cada base antes de desplegar el código** que la usa; sin ella, las consultas de publicaciones de un Docente fallan. Aplicado en local el 7 nov. 2026; **no aplicado en el VPS** |
 | `backend/NoiceBack/Sql/00_PREVALIDACION_SOLO_LECTURA.sql` | Consultas; presupone módulo académico |
 | `backend/NoiceBack/Sql/01_IMPORTAR_ICE_2027-1_SOLO_PRUEBAS_NO_EJECUTAR.sql` | Importación incremental; no instala base completa ni muestra previa |
 
