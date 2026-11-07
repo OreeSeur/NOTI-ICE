@@ -110,8 +110,9 @@ namespace PortalNoticiasAPI.Controllers
             }
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
-                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
+                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
+                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
 
             var noticia = new Noticia
             {
@@ -157,8 +158,9 @@ namespace PortalNoticiasAPI.Controllers
             }
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
-                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
+                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
+                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
 
             noticia.Titulo = dto.Titulo;
             noticia.Contenido = dto.Contenido;

@@ -14,6 +14,7 @@ namespace PortalNoticiasAPI.Services
     {
         private readonly PortalNoticiasContext _context;
         private HashSet<int> _gruposValidos = new();
+        private HashSet<int> _unidadesValidas = new();
 
         public AudienciaAccesoService(PortalNoticiasContext context) => _context = context;
 
@@ -21,17 +22,54 @@ namespace PortalNoticiasAPI.Services
         public async Task PrepararGruposAsync(Usuario? usuario)
         {
             _gruposValidos.Clear();
+            _unidadesValidas.Clear();
             if (usuario == null) return;
 
             if (usuario.Rol?.Nombre == "Alumno")
+            {
                 _gruposValidos = (await _context.GruposAlumnos.AsNoTracking()
                     .Where(i => i.IdUsuario == usuario.IdUsuario && i.Activo &&
                                 i.Grupo != null && i.Grupo.Activo)
                     .Select(i => i.IdGrupo).ToListAsync()).ToHashSet();
+                // Materias de los horarios que el alumno agrego a su perfil.
+                _unidadesValidas = (await _context.OfertaInscripcionesAlumnos.AsNoTracking()
+                    .Where(i => i.IdUsuario == usuario.IdUsuario && i.Activo)
+                    .Select(i => i.IdUnidadOferta).ToListAsync()).ToHashSet();
+            }
             else if (usuario.Rol?.Nombre == "Docente")
+            {
                 _gruposValidos = (await _context.Grupos.AsNoTracking()
                     .Where(g => g.IdUsuario == usuario.IdUsuario && g.Activo)
                     .Select(g => g.IdGrupo).ToListAsync()).ToHashSet();
+                // Materias de los horarios con asignacion aprobada por un Administrador.
+                _unidadesValidas = (await UnidadesAprobadasDe(usuario.IdUsuario)).ToHashSet();
+            }
+        }
+
+        private Task<List<int>> UnidadesAprobadasDe(int idDocente) =>
+            _context.OfertaSolicitudesDocentes.AsNoTracking()
+                .Where(s => s.IdUsuario == idDocente && s.Estado == EstadosSolicitudDocente.Aprobada)
+                .Select(s => s.IdUnidadOferta).ToListAsync();
+
+        // Docente: solo unidades con su asignacion aprobada y en periodo activo.
+        // Administrador: cualquier unidad activa. Lista vacia = sin restriccion por materia.
+        public async Task<bool> PuedePublicarParaUnidadesAsync(ClaimsPrincipal principal, List<int>? unidades)
+        {
+            if (unidades == null || unidades.Count > 30 || unidades.Any(id => id <= 0) ||
+                unidades.Distinct().Count() != unidades.Count) return false;
+            if (unidades.Count == 0) return true;
+            if (!int.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idAutor)) return false;
+
+            var activas = _context.OfertaUnidades.AsNoTracking()
+                .Where(u => unidades.Contains(u.IdUnidadOferta) && u.Grupo.Activo && u.Grupo.Periodo.Activo);
+            if (!principal.IsInRole("Administrador"))
+            {
+                if (!principal.IsInRole("Docente")) return false;
+                activas = activas.Where(u => _context.OfertaSolicitudesDocentes.Any(s =>
+                    s.IdUnidadOferta == u.IdUnidadOferta && s.IdUsuario == idAutor &&
+                    s.Estado == EstadosSolicitudDocente.Aprobada));
+            }
+            return await activas.CountAsync() == unidades.Count;
         }
 
         public async Task<bool> PuedePublicarParaGruposAsync(ClaimsPrincipal principal, List<int>? grupos)
@@ -79,11 +117,15 @@ namespace PortalNoticiasAPI.Services
                 var roles = Valores(documento.RootElement, "roles");
                 var carreras = Valores(documento.RootElement, "carreras");
                 var semestres = Valores(documento.RootElement, "semestres");
-                var grupos = GruposDestino(documento.RootElement);
-                if (roles == null || carreras == null || semestres == null || grupos == null) return false;
+                var grupos = IdsDestino(documento.RootElement, "grupos");
+                var unidades = IdsDestino(documento.RootElement, "unidadesOferta");
+                if (roles == null || carreras == null || semestres == null || grupos == null || unidades == null)
+                    return false;
 
-                // El grupo se verifica antes de permitir un contenido general.
-                if (grupos.Count > 0 && (usuario == null || !grupos.Any(_gruposValidos.Contains)))
+                // Grupos y materias destinatarias se verifican antes de permitir un contenido general:
+                // si hay alguno, el usuario debe pertenecer al menos a uno de ellos.
+                if ((grupos.Count > 0 || unidades.Count > 0) &&
+                    (usuario == null || !(grupos.Any(_gruposValidos.Contains) || unidades.Any(_unidadesValidas.Contains))))
                     return false;
 
                 // Publicación general disponible sin autenticación.
@@ -108,10 +150,10 @@ namespace PortalNoticiasAPI.Services
             }
         }
 
-        private static List<int>? GruposDestino(JsonElement root)
+        private static List<int>? IdsDestino(JsonElement root, string nombre)
         {
             var campos = root.EnumerateObject()
-                .Where(p => p.Name.Equals("grupos", StringComparison.OrdinalIgnoreCase)).ToArray();
+                .Where(p => p.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase)).ToArray();
             if (campos.Length == 0) return new List<int>();
             if (campos.Length != 1 || campos[0].Value.ValueKind != JsonValueKind.Array) return null;
             var ids = new List<int>();

@@ -13,6 +13,9 @@ namespace PortalNoticiasAPI.DTOs
         public List<string> Categorias { get; set; } = new() { "todos" };
         // Si no se seleccionan grupos, se conserva el comportamiento general anterior.
         public List<int> Grupos { get; set; } = new();
+        // Materias/laboratorios de los horarios (ofertaunidades). Solo el Docente aprobado para
+        // cada una (o un Administrador) puede elegirlas; las ven sus alumnos suscritos.
+        public List<int> UnidadesOferta { get; set; } = new();
         public string Prioridad { get; set; } = "normal";
     }
 

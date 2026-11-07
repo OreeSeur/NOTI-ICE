@@ -120,8 +120,9 @@ namespace PortalNoticiasAPI.Controllers
                 return BadRequest(new { mensaje = "La fecha de fin no puede ser anterior a la fecha de inicio" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
-                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
+                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
+                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
 
             var evento = new Evento
             {
@@ -163,8 +164,9 @@ namespace PortalNoticiasAPI.Controllers
                 return StatusCode(403, new { mensaje = "Solo puedes modificar los eventos que tú publicaste" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos))
-                return BadRequest(new { mensaje = "Los grupos destinatarios deben estar activos y pertenecer al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
+                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
+                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
 
             evento.Titulo = dto.Titulo;
             evento.Descripcion = dto.Descripcion;

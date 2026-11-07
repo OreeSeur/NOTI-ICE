@@ -32,6 +32,7 @@ namespace PortalNoticiasAPI.Data
         public DbSet<OfertaSesion> OfertaSesiones { get; set; }
         public DbSet<OfertaDocenteUnidad> OfertaDocentesUnidad { get; set; }
         public DbSet<OfertaInscripcionAlumno> OfertaInscripcionesAlumnos { get; set; }
+        public DbSet<OfertaSolicitudDocente> OfertaSolicitudesDocentes { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // -------- Consulta académica institucional: tablas nuevas independientes --------
@@ -162,6 +163,38 @@ namespace PortalNoticiasAPI.Data
                 e.HasIndex(x => new { x.IdUsuario, x.IdUnidadOferta }).IsUnique()
                     .HasDatabaseName("uq_ofertainscripcionesalumnos_usuario_unidad");
                 e.HasOne(x => x.Alumno).WithMany().HasForeignKey(x => x.IdUsuario)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Unidad).WithMany().HasForeignKey(x => x.IdUnidadOferta)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Solicitudes de docentes para impartir unidades; las aprueba o rechaza un Administrador.
+            modelBuilder.Entity<OfertaSolicitudDocente>(e =>
+            {
+                e.ToTable("ofertasolicitudesdocentes");
+                e.HasKey(x => x.IdSolicitud);
+                e.Property(x => x.IdSolicitud).HasColumnName("idSolicitud");
+                e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
+                e.Property(x => x.IdUnidadOferta).HasColumnName("idUnidadOferta");
+                e.Property(x => x.Estado).HasColumnName("Estado").HasMaxLength(12).IsRequired();
+                e.Property(x => x.FechaSolicitud).HasColumnName("FechaSolicitud").HasColumnType("datetime(6)");
+                e.Property(x => x.IdAdministrador).HasColumnName("idAdministrador");
+                e.Property(x => x.FechaResolucion).HasColumnName("FechaResolucion").HasColumnType("datetime(6)");
+                e.Property(x => x.Motivo).HasColumnName("Motivo").HasMaxLength(300);
+                // CASE es valido en MySQL y en SQLite (pruebas aisladas).
+                e.Property(x => x.IdUnidadAprobada).HasColumnName("idUnidadAprobada")
+                    .HasComputedColumnSql("CASE WHEN `Estado` = 'Aprobada' THEN `idUnidadOferta` END", stored: true);
+                e.Property(x => x.IdUnidadVigente).HasColumnName("idUnidadVigente")
+                    .HasComputedColumnSql("CASE WHEN `Estado` IN ('Pendiente', 'Aprobada') THEN `idUnidadOferta` END", stored: true);
+                e.HasIndex(x => x.IdUnidadAprobada).IsUnique()
+                    .HasDatabaseName("uq_ofertasolicitudesdocentes_unidad_aprobada");
+                e.HasIndex(x => new { x.IdUsuario, x.IdUnidadVigente }).IsUnique()
+                    .HasDatabaseName("uq_ofertasolicitudesdocentes_docente_vigente");
+                e.HasIndex(x => new { x.Estado, x.FechaSolicitud })
+                    .HasDatabaseName("ix_ofertasolicitudesdocentes_estado");
+                e.HasOne(x => x.Docente).WithMany().HasForeignKey(x => x.IdUsuario)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Administrador).WithMany().HasForeignKey(x => x.IdAdministrador)
                     .OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Unidad).WithMany().HasForeignKey(x => x.IdUnidadOferta)
                     .OnDelete(DeleteBehavior.Restrict);

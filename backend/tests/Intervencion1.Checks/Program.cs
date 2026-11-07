@@ -812,6 +812,184 @@ await Caso("Chatbot academico: coincidencia parcial se advierte como no exacta",
         "sin aviso de coincidencia parcial: " + materia?.Contenido);
 });
 
+// ------------------------------------------- Solicitudes de docentes para impartir materias
+async Task<int> UnidadId(PortalNoticiasContext db, string nombre) =>
+    await db.OfertaUnidades.Where(u => u.NombrePublicado == nombre).Select(u => u.IdUnidadOferta).SingleAsync();
+
+async Task<int> Solicitar(PortalNoticiasContext db, int idDocente, int idUnidad)
+{
+    var r = await Fabrica.Solicitudes(db, H.Principal(idDocente, "Docente"))
+        .Solicitar(new CrearSolicitudDocenteDto { IdUnidadOferta = idUnidad });
+    H.Afirmar(H.Estado(r) == 200, $"solicitar: estado {H.Estado(r)} {H.Mensaje(H.Valor(r))}");
+    return int.Parse(H.Campo(H.Valor(r), "idSolicitud"));
+}
+
+async Task<string> EstadoSolicitud(BaseDePrueba b, int id)
+{
+    await using var db = b.NuevoContexto();
+    return await db.OfertaSolicitudesDocentes.Where(s => s.IdSolicitud == id).Select(s => s.Estado).SingleAsync();
+}
+
+var adminP = H.Principal(BaseDePrueba.IdAdminA, "Administrador");
+
+await Caso("Solicitudes: roles exigidos por cada endpoint", () =>
+{
+    string? Roles(string metodo) => typeof(SolicitudesDocentesController).GetMethod(metodo)!
+        .GetCustomAttribute<AuthorizeAttribute>()?.Roles;
+    foreach (var m in new[] { "MisSolicitudes", "Solicitar", "Cancelar" })
+        H.Afirmar(Roles(m) == "Docente", $"{m}: {Roles(m)}");
+    foreach (var m in new[] { "Listar", "TotalPendientes", "Aprobar", "Rechazar", "Revocar" })
+        H.Afirmar(Roles(m) == "Administrador", $"{m}: {Roles(m)}");
+    H.Afirmar(Roles("Destinos") == "Administrador,Docente", "Destinos: " + Roles("Destinos"));
+    return Task.CompletedTask;
+});
+
+await Caso("Solicitudes: el Docente solicita; duplicada y unidad de periodo inactivo se rechazan", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var id = await Solicitar(db, BaseDePrueba.IdDocente, await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL"));
+    H.Afirmar(await EstadoSolicitud(b, id) == "Pendiente", "estado inicial");
+    var dup = await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdDocente, "Docente"))
+        .Solicitar(new CrearSolicitudDocenteDto { IdUnidadOferta = await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL") });
+    H.Afirmar(H.Estado(dup) == 409, $"duplicada: {H.Estado(dup)}");
+    var historica = await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdDocente, "Docente"))
+        .Solicitar(new CrearSolicitudDocenteDto { IdUnidadOferta = await UnidadId(db, "HISTORICA 2026-2") });
+    H.Afirmar(H.Estado(historica) == 404, $"periodo inactivo: {H.Estado(historica)}");
+});
+
+await Caso("Solicitudes: una cuenta que no es Docente en BD no puede solicitar aunque el JWT diga Docente", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var r = await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdAlumno, "Docente"))
+        .Solicitar(new CrearSolicitudDocenteDto { IdUnidadOferta = await UnidadId(db, "QUIMICA BASICA") });
+    H.Afirmar(r is ForbidResult, "no devolvió Forbid: " + H.Estado(r));
+});
+
+await Caso("Solicitudes: aprobar asigna un solo docente y rechaza las demás pendientes de esa materia", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var unidad = await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL");
+    var s1 = await Solicitar(db, BaseDePrueba.IdDocente, unidad);
+    var s2 = await Solicitar(db, OfertaDePrueba.IdOtroDocente, unidad);
+    var r = await Fabrica.Solicitudes(db, adminP).Aprobar(s1);
+    H.Afirmar(H.Estado(r) == 200, $"aprobar: {H.Estado(r)} {H.Mensaje(H.Valor(r))}");
+    H.Afirmar(await EstadoSolicitud(b, s1) == "Aprobada", "s1 no aprobada");
+    H.Afirmar(await EstadoSolicitud(b, s2) == "Rechazada", "s2 no rechazada automáticamente");
+    var nueva = await Fabrica.Solicitudes(db, H.Principal(OfertaDePrueba.IdOtroDocente, "Docente"))
+        .Solicitar(new CrearSolicitudDocenteDto { IdUnidadOferta = unidad });
+    H.Afirmar(H.Estado(nueva) == 409, $"nueva solicitud sobre materia asignada: {H.Estado(nueva)}");
+    var otraVez = await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdAdminB, "Administrador")).Aprobar(s1);
+    H.Afirmar(H.Estado(otraVez) == 409, $"segunda resolución: {H.Estado(otraVez)}");
+});
+
+await Caso("Solicitudes: la BD impide dos aprobadas para la misma materia (índice único)", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var unidad = await UnidadId(db, "QUIMICA BASICA");
+    db.OfertaSolicitudesDocentes.AddRange(
+        new OfertaSolicitudDocente { IdUsuario = BaseDePrueba.IdDocente, IdUnidadOferta = unidad, Estado = "Aprobada", FechaSolicitud = DateTime.UtcNow },
+        new OfertaSolicitudDocente { IdUsuario = OfertaDePrueba.IdOtroDocente, IdUnidadOferta = unidad, Estado = "Aprobada", FechaSolicitud = DateTime.UtcNow });
+    var fallo = false;
+    try { await db.SaveChangesAsync(); } catch (DbUpdateException) { fallo = true; }
+    H.Afirmar(fallo, "se guardaron dos aprobadas");
+});
+
+await Caso("Solicitudes: rechazar y revocar exigen motivo; el Docente solo cancela las suyas", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var s1 = await Solicitar(db, BaseDePrueba.IdDocente, await UnidadId(db, "QUIMICA BASICA"));
+    var sinMotivo = await Fabrica.Solicitudes(db, adminP).Rechazar(s1, new ResolverSolicitudDocenteDto { Motivo = " " });
+    H.Afirmar(H.Estado(sinMotivo) == 400, $"sin motivo: {H.Estado(sinMotivo)}");
+    var ajena = await Fabrica.Solicitudes(db, H.Principal(OfertaDePrueba.IdOtroDocente, "Docente")).Cancelar(s1);
+    H.Afirmar(H.Estado(ajena) == 404, $"cancelar ajena: {H.Estado(ajena)}");
+    var rech = await Fabrica.Solicitudes(db, adminP).Rechazar(s1, new ResolverSolicitudDocenteDto { Motivo = "No corresponde al horario." });
+    H.Afirmar(H.Estado(rech) == 200 && await EstadoSolicitud(b, s1) == "Rechazada", "no se rechazó");
+    var revocarRechazada = await Fabrica.Solicitudes(db, adminP).Revocar(s1, new ResolverSolicitudDocenteDto { Motivo = "Prueba de estado." });
+    H.Afirmar(H.Estado(revocarRechazada) == 409, $"revocar rechazada: {H.Estado(revocarRechazada)}");
+
+    var s2 = await Solicitar(db, BaseDePrueba.IdDocente, await UnidadId(db, "FISICA CLASICA"));
+    var propia = await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdDocente, "Docente")).Cancelar(s2);
+    H.Afirmar(H.Estado(propia) == 204 && await EstadoSolicitud(b, s2) == "Cancelada", "no canceló la propia");
+});
+
+await Caso("Solicitudes: el Docente solo publica para sus materias aprobadas; al revocar pierde el permiso", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var calculo = await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL");
+    var fisica = await UnidadId(db, "FISICA CLASICA");
+    var docente = H.Principal(BaseDePrueba.IdDocente, "Docente");
+    var acceso = new AudienciaAccesoService(db);
+    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "publica sin aprobación");
+
+    var s = await Solicitar(db, BaseDePrueba.IdDocente, calculo);
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+    H.Afirmar(await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "no publica con aprobación");
+    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo, fisica }), "publica en materia ajena");
+    H.Afirmar(await acceso.PuedePublicarParaUnidadesAsync(adminP, new() { calculo, fisica }), "el Administrador no puede");
+    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(H.Principal(BaseDePrueba.IdAlumno, "Alumno"), new() { calculo }),
+        "un Alumno puede destinar a materias");
+
+    await Fabrica.Solicitudes(db, adminP).Revocar(s, new ResolverSolicitudDocenteDto { Motivo = "Cambio de docente." });
+    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "sigue publicando tras revocar");
+});
+
+await Caso("Solicitudes: una publicación para una materia solo la ven sus alumnos, su docente y administración", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var calculo = await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL");
+    var s = await Solicitar(db, BaseDePrueba.IdDocente, calculo);
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+    var audiencia = $"{{\"roles\":[\"todos\"],\"carreras\":[\"todos\"],\"semestres\":[\"todos\"],\"unidadesOferta\":[{calculo}]}}";
+
+    async Task<bool> Ve(int id)
+    {
+        await using var ctx = b.NuevoContexto();
+        var acceso = new AudienciaAccesoService(ctx);
+        var u = await acceso.UsuarioActualAsync(H.Principal(id, "x"));
+        return acceso.PuedeVer(audiencia, u);
+    }
+    H.Afirmar(await Ve(BaseDePrueba.IdAlumno), "el alumno suscrito no la ve");
+    H.Afirmar(!await Ve(OfertaDePrueba.IdOtroAlumno), "un alumno no suscrito la ve");
+    H.Afirmar(await Ve(BaseDePrueba.IdDocente), "el docente aprobado no la ve");
+    H.Afirmar(!await Ve(OfertaDePrueba.IdOtroDocente), "otro docente la ve");
+    H.Afirmar(await Ve(BaseDePrueba.IdAdminA), "la administración no la ve");
+    await using (var ctx = b.NuevoContexto())
+        H.Afirmar(!new AudienciaAccesoService(ctx).PuedeVer(audiencia, null), "un visitante la ve");
+    await using (var ctx = b.NuevoContexto())
+        H.Afirmar(!new AudienciaAccesoService(ctx).PuedeVer(
+            "{\"roles\":[\"todos\"],\"carreras\":[\"todos\"],\"semestres\":[\"todos\"],\"unidadesOferta\":[\"x\"]}", null),
+            "unidadesOferta inválido se trató como general");
+});
+
+await Caso("Solicitudes: destinos del Docente son solo los suyos; el Administrador ve todos y la bandeja", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var s1 = await Solicitar(db, BaseDePrueba.IdDocente, await UnidadId(db, "CALCULO DIFERENCIAL E INTEGRAL"));
+    var s2 = await Solicitar(db, OfertaDePrueba.IdOtroDocente, await UnidadId(db, "FISICA CLASICA"));
+    await Solicitar(db, OfertaDePrueba.IdOtroDocente, await UnidadId(db, "QUIMICA BASICA"));
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s1);
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s2);
+
+    var mios = (List<UnidadDestinoDto>)H.Valor(await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdDocente, "Docente")).Destinos())!;
+    H.Afirmar(mios.Count == 1 && mios[0].NombrePublicado == "CALCULO DIFERENCIAL E INTEGRAL" && mios[0].AlumnosSuscritos == 1,
+        "destinos del docente: " + string.Join(",", mios.Select(m => m.NombrePublicado)));
+    var todos = (List<UnidadDestinoDto>)H.Valor(await Fabrica.Solicitudes(db, adminP).Destinos())!;
+    H.Afirmar(todos.Count == 2, "destinos del admin: " + todos.Count);
+    var pendientes = (List<SolicitudDocenteDto>)H.Valor(await Fabrica.Solicitudes(db, adminP).Listar("Pendiente"))!;
+    H.Afirmar(pendientes.Count == 1 && pendientes[0].DocenteNombre == "Otro docente", "bandeja: " + pendientes.Count);
+    var mias = (List<SolicitudDocenteDto>)H.Valor(await Fabrica.Solicitudes(db, H.Principal(BaseDePrueba.IdDocente, "Docente")).MisSolicitudes())!;
+    H.Afirmar(mias.Count == 1 && mias[0].DocenteCorreo == null && mias[0].DocentesPublicados.Contains("PEREZ GOMEZ JUAN"),
+        "mis solicitudes: " + mias.Count);
+});
+
 Console.WriteLine();
 Console.WriteLine($"Resultado: {superadas} superadas, {fallidas.Count} fallidas.");
 foreach (var f in fallidas) Console.WriteLine("  - " + f);
@@ -877,6 +1055,9 @@ static class Fabrica
     public static AuthController Auth(PortalNoticiasContext db, ClaimsPrincipal? usuario = null) =>
         H.ConUsuario(new AuthController(db, new TokenService(Jwt), Correo(), Jwt), usuario);
 
+    public static SolicitudesDocentesController Solicitudes(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
+        H.ConUsuario(new SolicitudesDocentesController(db), usuario);
+
     public static UsuariosController Usuarios(PortalNoticiasContext db, ClaimsPrincipal usuario) =>
         H.ConUsuario(new UsuariosController(db), usuario);
 
@@ -934,7 +1115,7 @@ sealed class EntornoPrueba : IHostEnvironment
 // Oferta academica minima para las pruebas del asistente. Datos ficticios, solo en SQLite en memoria.
 static class OfertaDePrueba
 {
-    public const int IdOtroAlumno = 6;
+    public const int IdOtroAlumno = 6, IdOtroDocente = 7;
 
     public static async Task SembrarAsync(BaseDePrueba b)
     {
@@ -945,6 +1126,12 @@ static class OfertaDePrueba
             IdUsuario = IdOtroAlumno, Nombre = "Otro alumno", Correo = "otro.alumno@prueba.local",
             IdRol = BaseDePrueba.IdRolAlumno, NoIdentificacion = "ID-6", Contrasena = "x", FechaAlta = ahora,
             Activo = true, VersionSesion = 1, Carrera = "Ingeniería en Comunicaciones y Electrónica", Semestre = 1
+        });
+        db.Usuarios.Add(new Usuario
+        {
+            IdUsuario = IdOtroDocente, Nombre = "Otro docente", Correo = "otro.docente@prueba.local",
+            IdRol = BaseDePrueba.IdRolDocente, NoIdentificacion = "ID-7", Contrasena = "x", FechaAlta = ahora,
+            Activo = true, VersionSesion = 1
         });
 
         var actual = new OfertaPeriodo { Clave = "2027-1", Descripcion = "Periodo actual", Activo = true };
