@@ -112,7 +112,27 @@ variables `VITE_*`.
 | El asistente responde 429 | Se agotó la cuota por usuario (5 solicitudes por 60 s). Espera. |
 | Redirección HTTPS inesperada | La API conserva `UseHttpsRedirection`. Usa el perfil `ollama-local` (HTTP) o el perfil `https` con certificado de confianza. |
 
-## 9. Verificación opcional
+## 9. Si el proyecto está dentro de OneDrive
+
+OneDrive intenta sincronizar `node_modules` (miles de archivos) y `bin`/`obj` y puede
+bloquearlos, lo que provoca errores `EPERM` en `npm ci` o archivos en uso al compilar.
+Lo más seguro es mantener el repositorio **fuera** de OneDrive (por ejemplo
+`C:\dev\NOTI-ICE`) y usar Git y GitHub como respaldo. Para moverlo:
+
+```powershell
+git clone https://github.com/OreeSeur/NOTI-ICE.git C:\dev\NOTI-ICE
+```
+
+Los secretos de User Secrets no viajan con el clon: se guardan en el perfil de Windows
+y se identifican por el `UserSecretsId` del proyecto, así que siguen disponibles en el
+mismo usuario.
+
+Si no puedes moverlo, pausa la sincronización mientras trabajas (icono de OneDrive,
+Ayuda y configuración, Pausar sincronización). No uses «Liberar espacio» sobre
+`node_modules`, `bin` u `obj`: convierte los archivos en solo-nube y rompe la
+compilación.
+
+## 10. Verificación opcional
 
 ```powershell
 dotnet build backend/NoiceBack/NoiceBack.csproj -c Release

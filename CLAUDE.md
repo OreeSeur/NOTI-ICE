@@ -65,7 +65,6 @@ NOTI-ICE/
     src/routes/                   Router y protección de rutas
     src/constants/                Roles, rutas, audiencias y datos académicos
     src/utils/                    Validación y reglas reutilizables
-    docs/                         Documentación, parte de ella histórica
   backend/
     NoiceBack/                    Proyecto real de API (conservar este nombre)
       Controllers/                Endpoints
@@ -79,6 +78,10 @@ NOTI-ICE/
     tests/ChatbotLimits.Checks/
   database/migraciones/            Migraciones parciales
   docs/                           Documentación por área; índice en docs/README.md
+    frontend/                     Arquitectura, roles, flujos, API, errores, identidad (parte histórica)
+    backend/                      Pendientes del backend y límites del chatbot
+    despliegue/                   Respaldos y recuperación
+    pruebas/                      Arranque local (00), checklist y pruebas con Ollama
   deploy/production/              Plantillas y documentación del servidor
 ```
 
@@ -386,7 +389,7 @@ Ampliar el chatbot a materias/horarios es una **posible mejora**, no un trabajo 
 
 Al retomar:
 
-1. Leer este documento y `docs/pruebas/02-pruebas-locales-ollama.md`.
+1. Leer este documento, `docs/pruebas/00-arranque-local.md` y `docs/pruebas/02-pruebas-locales-ollama.md`.
 2. Comprobar rama, HEAD y cambios locales; conservar trabajo existente.
 3. Leer los archivos del módulo solicitado y resolver contradicciones usando código actual y evidencia fechada.
 4. Confirmar destino de BD antes de cualquier operación con datos, sin imprimir secretos.
