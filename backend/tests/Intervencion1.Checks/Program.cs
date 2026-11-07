@@ -672,6 +672,146 @@ await Caso("Autorización intacta: atributos [Authorize] y límites de frecuenci
     return Task.CompletedTask;
 });
 
+// ------------------------------------------- Chatbot: fuentes academicas con limites por usuario
+async Task<(BaseDePrueba Base, PortalNoticiasContext Db)> BaseAcademica()
+{
+    var b = await BaseDePrueba.CrearAsync();
+    await OfertaDePrueba.SembrarAsync(b);
+    return (b, b.NuevoContexto());
+}
+
+async Task<Usuario> UsuarioDe(PortalNoticiasContext db, int id) =>
+    await db.Usuarios.Include(u => u.Rol).SingleAsync(u => u.IdUsuario == id);
+
+foreach (var (id, rol) in new[] { (BaseDePrueba.IdAdminA, "Administrador"), (BaseDePrueba.IdDocente, "Docente"), (BaseDePrueba.IdAlumno, "Alumno") })
+{
+    await Caso($"Chatbot academico: {rol} consulta el horario de un grupo con dias, horas y docentes", async () =>
+    {
+        var (b, db) = await BaseAcademica();
+        await using var _b = b; await using var _db = db;
+        var fuentes = await new ChatbotFuentesAcademicasService(db)
+            .ObtenerAsync(await UsuarioDe(db, id), "¿Cuál es el horario del grupo 1CV11?", default);
+        var grupo = fuentes.SingleOrDefault(f => f.Tipo == "Grupo");
+        H.Afirmar(grupo != null, "sin fuente de grupo: " + string.Join(",", fuentes.Select(f => f.Tipo)));
+        H.Afirmar(grupo!.Contenido.Contains("CALCULO DIFERENCIAL") && grupo.Contenido.Contains("Lun 07:00-08:30"),
+            "contenido incompleto: " + grupo.Contenido);
+        H.Afirmar(grupo.Contenido.Contains("PEREZ GOMEZ JUAN") && grupo.Contenido.Contains("vacante"), "docentes ausentes");
+        H.Afirmar(!grupo.Contenido.Contains("2026-2"), "mezcla un periodo inactivo");
+    });
+}
+
+await Caso("Chatbot academico: rol ajeno a Administrador/Docente/Alumno no recibe horarios ni catalogo", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var servicio = new ChatbotFuentesAcademicasService(db);
+    var invitado = await UsuarioDe(db, BaseDePrueba.IdInvitado);
+    H.Afirmar((await servicio.ObtenerAsync(invitado, "horario del grupo 1CV11", default)).Count == 0, "devolvió horarios");
+    H.Afirmar((await servicio.ObtenerAsync(invitado, "materias de calculo", default)).Count == 0, "devolvió catálogo");
+});
+
+await Caso("Chatbot academico: busca una materia por nombre y por docente publicado", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var servicio = new ChatbotFuentesAcademicasService(db);
+    var docente = await UsuarioDe(db, BaseDePrueba.IdDocente);
+    var porMateria = await servicio.ObtenerAsync(docente, "¿En qué grupos hay Física Clásica?", default);
+    H.Afirmar(porMateria.Any(f => f.Tipo == "Materia" && f.Contenido.Contains("1CV12")), "no encontró la materia");
+    var porDocente = await servicio.ObtenerAsync(docente, "¿Qué materias da el profesor Pérez?", default);
+    H.Afirmar(porDocente.Any(f => f.Tipo == "Materia" && f.Titulo == "CALCULO DIFERENCIAL E INTEGRAL" &&
+        f.Contenido.Contains("PEREZ GOMEZ JUAN")), "no encontró por docente");
+});
+
+await Caso("Chatbot academico: catalogo por semestre y plan", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var fuentes = await new ChatbotFuentesAcademicasService(db)
+        .ObtenerAsync(await UsuarioDe(db, BaseDePrueba.IdAlumno), "¿Qué materias hay en primer semestre del plan 2024?", default);
+    var catalogo = fuentes.SingleOrDefault(f => f.Tipo == "Catálogo");
+    H.Afirmar(catalogo != null, "sin catálogo");
+    H.Afirmar(catalogo!.Contenido.Contains("Cálculo Diferencial e Integral") && !catalogo.Contenido.Contains("Electrónica Avanzada"),
+        "filtro de semestre incorrecto: " + catalogo.Contenido);
+    H.Afirmar(!catalogo.Contenido.Contains("CLAVE-NO-VERIFICADA"), "expone una clave oficial no verificada");
+});
+
+await Caso("Chatbot academico: el Alumno solo recibe sus propias materias seleccionadas", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var fuentes = await new ChatbotFuentesAcademicasService(db)
+        .ObtenerAsync(await UsuarioDe(db, BaseDePrueba.IdAlumno), "¿Cuál es mi horario?", default);
+    var mias = fuentes.SingleOrDefault(f => f.Tipo == "Mis materias");
+    H.Afirmar(mias != null, "sin fuente de mis materias");
+    H.Afirmar(mias!.Contenido.Contains("CALCULO DIFERENCIAL"), "falta la selección activa propia");
+    H.Afirmar(!mias.Contenido.Contains("FISICA CLASICA"), "incluye la selección de otro alumno");
+    H.Afirmar(!mias.Contenido.Contains("QUIMICA BASICA"), "incluye una selección dada de baja");
+    H.Afirmar(mias.Contenido.Contains("no inscripción oficial"), "no aclara que no es inscripción oficial");
+});
+
+foreach (var (id, rol) in new[] { (BaseDePrueba.IdAdminA, "Administrador"), (BaseDePrueba.IdDocente, "Docente") })
+{
+    await Caso($"Chatbot academico: {rol} no obtiene selecciones de alumnos con «mis materias»", async () =>
+    {
+        var (b, db) = await BaseAcademica();
+        await using var _b = b; await using var _db = db;
+        var fuentes = await new ChatbotFuentesAcademicasService(db)
+            .ObtenerAsync(await UsuarioDe(db, id), "¿Cuáles son mis materias?", default);
+        H.Afirmar(fuentes.Count == 0, "devolvió fuentes: " + string.Join(",", fuentes.Select(f => f.Tipo)));
+    });
+}
+
+await Caso("Chatbot academico: el perfil solo contiene datos propios, sin correo ni boleta", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var alumno = await UsuarioDe(db, BaseDePrueba.IdAlumno);
+    var perfil = (await new ChatbotFuentesAcademicasService(db).ObtenerAsync(alumno, "¿En qué semestre estoy según mi perfil?", default))
+        .SingleOrDefault(f => f.Tipo == "Perfil");
+    H.Afirmar(perfil != null, "sin fuente de perfil");
+    H.Afirmar(perfil!.Contenido.Contains("Semestre: 3") && perfil.Contenido.Contains("Alumno"), "datos incompletos");
+    H.Afirmar(!perfil.Contenido.Contains(alumno.Correo) && !perfil.Contenido.Contains(alumno.NoIdentificacion) &&
+              !perfil.Contenido.Contains(alumno.Contrasena), "expone datos sensibles");
+});
+
+await Caso("Chatbot: pregunta academica sin coincidencias responde sin llamar a Ollama", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var r = await Fabrica.Chatbot(db, H.Config(("Chatbot:Enabled", "true"), ("Ollama:BaseUrl", "http://127.0.0.1:9")),
+            H.Principal(BaseDePrueba.IdAlumno, "Alumno"))
+        .Consultar(new PreguntaChatDto { Pregunta = "¿Quién imparte astrofísica cuántica?" });
+    H.Afirmar(H.Estado(r) == 200, $"estado {H.Estado(r)}");
+    H.Afirmar(((RespuestaChatDto)H.Valor(r)!).Texto.StartsWith("No encontre informacion"), "respuesta inesperada");
+});
+
+await Caso("Chatbot: horario de grupo se responde con los datos exactos sin llamar a Ollama", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    // Ollama apunta a un puerto cerrado: si el controlador lo llamara, responderia 503.
+    var r = await Fabrica.Chatbot(db, H.Config(("Chatbot:Enabled", "true"), ("Ollama:BaseUrl", "http://127.0.0.1:9")),
+            H.Principal(BaseDePrueba.IdAlumno, "Alumno"))
+        .Consultar(new PreguntaChatDto { Pregunta = "horario del grupo 1CV11" });
+    H.Afirmar(H.Estado(r) == 200, $"estado {H.Estado(r)}: {H.Mensaje(H.Valor(r))}");
+    var dto = (RespuestaChatDto)H.Valor(r)!;
+    H.Afirmar(dto.Texto.Contains("Horario del grupo 1CV11") && dto.Texto.Contains("Lun 07:00-08:30") &&
+              dto.Texto.Contains("PEREZ GOMEZ JUAN"), "texto incompleto: " + dto.Texto);
+    H.Afirmar(dto.Enlaces.Count == 1 && dto.Enlaces[0].Ruta == "/horarios", "enlaces inesperados");
+});
+
+await Caso("Chatbot academico: coincidencia parcial se advierte como no exacta", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var fuentes = await new ChatbotFuentesAcademicasService(db)
+        .ObtenerAsync(await UsuarioDe(db, BaseDePrueba.IdAlumno), "¿Quién da Física Moderna?", default);
+    var materia = fuentes.SingleOrDefault(f => f.Tipo == "Materia");
+    H.Afirmar(materia != null && materia.Contenido.StartsWith("No encontré una coincidencia exacta"),
+        "sin aviso de coincidencia parcial: " + materia?.Contenido);
+});
+
 Console.WriteLine();
 Console.WriteLine($"Resultado: {superadas} superadas, {fallidas.Count} fallidas.");
 foreach (var f in fallidas) Console.WriteLine("  - " + f);
@@ -750,7 +890,8 @@ static class Fabrica
     public static ChatbotController Chatbot(PortalNoticiasContext db, IConfiguration config, ClaimsPrincipal usuario) =>
         H.ConUsuario(new ChatbotController(db, new AudienciaAccesoService(db), config,
             NullLogger<ChatbotController>.Instance,
-            new ChatbotGenerationLimiter(Options.Create(new ChatbotLimitsOptions()))), usuario);
+            new ChatbotGenerationLimiter(Options.Create(new ChatbotLimitsOptions())),
+            new ChatbotFuentesAcademicasService(db)), usuario);
 }
 
 // Construye MySqlException reales (su constructor es interno en MySqlConnector) para probar la clasificacion.
@@ -788,6 +929,71 @@ sealed class EntornoPrueba : IHostEnvironment
     public string ApplicationName { get; set; } = "Intervencion1.Checks";
     public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
     public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+}
+
+// Oferta academica minima para las pruebas del asistente. Datos ficticios, solo en SQLite en memoria.
+static class OfertaDePrueba
+{
+    public const int IdOtroAlumno = 6;
+
+    public static async Task SembrarAsync(BaseDePrueba b)
+    {
+        await using var db = b.NuevoContexto();
+        var ahora = DateTime.Now;
+        db.Usuarios.Add(new Usuario
+        {
+            IdUsuario = IdOtroAlumno, Nombre = "Otro alumno", Correo = "otro.alumno@prueba.local",
+            IdRol = BaseDePrueba.IdRolAlumno, NoIdentificacion = "ID-6", Contrasena = "x", FechaAlta = ahora,
+            Activo = true, VersionSesion = 1, Carrera = "Ingeniería en Comunicaciones y Electrónica", Semestre = 1
+        });
+
+        var actual = new OfertaPeriodo { Clave = "2027-1", Descripcion = "Periodo actual", Activo = true };
+        var anterior = new OfertaPeriodo { Clave = "2026-2", Descripcion = "Periodo cerrado", Activo = false };
+        OfertaGrupo Grupo(OfertaPeriodo p, string codigo) => new()
+        {
+            Periodo = p, CodigoGrupo = codigo, Programa = "ICE", Plan = "2024", Semestre = 1,
+            Turno = "Matutino", Modalidad = "Escolarizada", FechaConsulta = ahora, Activo = true
+        };
+        var g11 = Grupo(actual, "1CV11");
+        var g12 = Grupo(actual, "1CV12");
+        var gHistorico = Grupo(anterior, "1CV11");
+
+        var calculo = new OfertaUnidad
+        {
+            Grupo = g11, NombrePublicado = "CALCULO DIFERENCIAL E INTEGRAL", OrdenFuente = 1, AulaPublicada = "1201",
+            Sesiones = { new OfertaSesion { DiaSemana = 1, HoraInicio = new TimeSpan(7, 0, 0), HoraFin = new TimeSpan(8, 30, 0) },
+                         new OfertaSesion { DiaSemana = 3, HoraInicio = new TimeSpan(7, 0, 0), HoraFin = new TimeSpan(8, 30, 0) } },
+            Docentes = { new OfertaDocenteUnidad { Orden = 1, Tipo = "DOCENTE", NombrePublicado = "PEREZ GOMEZ JUAN" },
+                         new OfertaDocenteUnidad { Orden = 2, Tipo = "VACANTE" } }
+        };
+        var quimica = new OfertaUnidad
+        {
+            Grupo = g11, NombrePublicado = "QUIMICA BASICA", OrdenFuente = 2,
+            Sesiones = { new OfertaSesion { DiaSemana = 2, HoraInicio = new TimeSpan(10, 0, 0), HoraFin = new TimeSpan(11, 30, 0) } }
+        };
+        var fisica = new OfertaUnidad
+        {
+            Grupo = g12, NombrePublicado = "FISICA CLASICA", OrdenFuente = 1,
+            Sesiones = { new OfertaSesion { DiaSemana = 4, HoraInicio = new TimeSpan(8, 30, 0), HoraFin = new TimeSpan(10, 0, 0) } },
+            Docentes = { new OfertaDocenteUnidad { Orden = 1, Tipo = "DOCENTE", NombrePublicado = "LOPEZ RUIZ ANA" } }
+        };
+        var historica = new OfertaUnidad { Grupo = gHistorico, NombrePublicado = "HISTORICA 2026-2", OrdenFuente = 1 };
+        db.OfertaUnidades.AddRange(calculo, quimica, fisica, historica);
+
+        db.CatalogoMateriasPlanes.AddRange(
+            new CatalogoMateriaPlan { IdOrigen = "C1", Nombre = "Cálculo Diferencial e Integral", Plan = "2024", Programa = "ICE",
+                Semestre = 1, Tipo = "Obligatoria", ClaveOficialIPN = "CLAVE-NO-VERIFICADA", ClaveOficialVerificada = false, Activo = true },
+            new CatalogoMateriaPlan { IdOrigen = "C2", Nombre = "Electrónica Avanzada", Plan = "2024", Programa = "ICE",
+                Semestre = 7, Tipo = "Obligatoria", Activo = true });
+        await db.SaveChangesAsync();
+
+        // Selecciones: activa propia, baja propia y activa de otro alumno.
+        db.OfertaInscripcionesAlumnos.AddRange(
+            new OfertaInscripcionAlumno { IdUsuario = BaseDePrueba.IdAlumno, IdUnidadOferta = calculo.IdUnidadOferta, FechaAlta = ahora, Activo = true },
+            new OfertaInscripcionAlumno { IdUsuario = BaseDePrueba.IdAlumno, IdUnidadOferta = quimica.IdUnidadOferta, FechaAlta = ahora, Activo = false, FechaBaja = ahora },
+            new OfertaInscripcionAlumno { IdUsuario = IdOtroAlumno, IdUnidadOferta = fisica.IdUnidadOferta, FechaAlta = ahora, Activo = true });
+        await db.SaveChangesAsync();
+    }
 }
 
 // Base SQLite en memoria con el modelo real de PortalNoticiasContext. Cada caso crea la suya.

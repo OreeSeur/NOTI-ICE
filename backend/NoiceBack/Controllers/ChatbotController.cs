@@ -32,12 +32,14 @@ public sealed class ChatbotController : ControllerBase
     private readonly IConfiguration _config;
     private readonly ILogger<ChatbotController> _logger;
     private readonly ChatbotGenerationLimiter _generaciones;
+    private readonly ChatbotFuentesAcademicasService _academicas;
     private static readonly HttpClient Ollama = new() { Timeout = TimeSpan.FromSeconds(150) };
 
-    private sealed record Fuente(string Tipo, int Id, string Titulo, string Contenido, string Fecha, string Ruta)
-    {
-        public EnlaceChatDto Enlace => new($"{Tipo.ToLowerInvariant()}-{Id}", Tipo, Titulo, Fecha, Ruta);
-    }
+    private const int MaxPublicaciones = 6;
+    private const int MaxFuentesAcademicas = 4;
+
+    private static EnlaceChatDto Enlace(FuenteChat f) =>
+        new($"{f.Tipo.ToLowerInvariant()}-{f.Id}", f.Tipo, f.Titulo, f.Detalle, f.Ruta);
 
     private static readonly HashSet<string> PalabrasVacias = new(StringComparer.Ordinal)
     {
@@ -51,13 +53,15 @@ public sealed class ChatbotController : ControllerBase
     };
 
     public ChatbotController(PortalNoticiasContext db, AudienciaAccesoService audiencias,
-        IConfiguration config, ILogger<ChatbotController> logger, ChatbotGenerationLimiter generaciones)
+        IConfiguration config, ILogger<ChatbotController> logger, ChatbotGenerationLimiter generaciones,
+        ChatbotFuentesAcademicasService academicas)
     {
         _db = db;
         _audiencias = audiencias;
         _config = config;
         _logger = logger;
         _generaciones = generaciones;
+        _academicas = academicas;
     }
 
     [HttpPost]
@@ -85,18 +89,18 @@ public sealed class ChatbotController : ControllerBase
             .Where(d => d.Activo).OrderByDescending(d => d.FechaPublicacion ?? d.FechaAlta)
             .Take(100).ToListAsync();
 
-        var fuentes = new List<Fuente>();
+        var fuentes = new List<FuenteChat>();
         fuentes.AddRange(noticias.Where(n => _audiencias.PuedeVer(n.AudienciaJson, usuario))
-            .Select(n => new Fuente("Noticia", n.IdNoticia, n.Titulo, n.Contenido,
+            .Select(n => new FuenteChat("Noticia", n.IdNoticia, n.Titulo, n.Contenido,
                 n.FechaPublicacion.ToString("yyyy-MM-dd"), $"/noticias/{n.IdNoticia}")));
         fuentes.AddRange(eventos.Where(e => _audiencias.PuedeVer(e.AudienciaJson, usuario))
-            .Select(e => new Fuente("Evento", e.IdEvento, e.Titulo,
+            .Select(e => new FuenteChat("Evento", e.IdEvento, e.Titulo,
                 $"{e.Descripcion} Lugar: {e.Lugar}", e.FechaInicio.ToString("yyyy-MM-dd"),
                 $"/eventos/{e.IdEvento}")));
         fuentes.AddRange(documentos.Where(d => _audiencias.PuedeVer(d.AudienciaJson, usuario) &&
             (!d.IdNoticia.HasValue || (d.Noticia is { Activo: true } noticia &&
                 _audiencias.PuedeVer(noticia.AudienciaJson, usuario))))
-            .Select(d => new Fuente("Documento", d.IdNoticiaDocumento, d.DocumentoNombre,
+            .Select(d => new FuenteChat("Documento", d.IdNoticiaDocumento, d.DocumentoNombre,
                 $"{d.Descripcion} Tipo: {d.TipoDocumento}",
                 (d.FechaPublicacion ?? d.FechaAlta).ToString("yyyy-MM-dd"),
                 $"/documentos/{d.IdNoticiaDocumento}")));
@@ -108,9 +112,12 @@ public sealed class ChatbotController : ControllerBase
             .Distinct().ToArray();
         var tipo = normal.Contains("documento") || normal.Contains("archivo") ? "Documento" :
                    normal.Contains("evento") || normal.Contains("calendario") ? "Evento" :
-                   normal.Contains("noticia") || normal.Contains("aviso") ? "Noticia" : null;
+                   normal.Contains("noticia") || normal.Contains("aviso") ? "Noticia" :
+                   ChatbotFuentesAcademicasService.EsPreguntaAcademica(normal) ||
+                   ChatbotFuentesAcademicasService.PreguntaPorMisMaterias(normal) ? "Academico" : null;
 
-        var candidatas = fuentes.Where(f => tipo is null || f.Tipo == tipo)
+        var candidatas = tipo == "Academico" ? new List<FuenteChat>() : fuentes
+            .Where(f => tipo is null || f.Tipo == tipo)
             .Select(f => new
             {
                 Fuente = f,
@@ -119,21 +126,33 @@ public sealed class ChatbotController : ControllerBase
             })
             .Where(v => tokens.Length == 0 || v.Puntos > 0)
             .OrderByDescending(v => v.Puntos)
-            .Take(6).Select(v => v.Fuente).ToList();
+            .Take(MaxPublicaciones).Select(v => v.Fuente).ToList();
 
-        if (candidatas.Count == 0)
+        // Horarios, catalogo, materias propias y perfil: con las mismas reglas de rol de sus endpoints.
+        var academicas = tipo is null or "Academico"
+            ? (await _academicas.ObtenerAsync(usuario, pregunta, HttpContext.RequestAborted))
+                .Take(MaxFuentesAcademicas).ToList()
+            : new List<FuenteChat>();
+
+        if (candidatas.Count == 0 && academicas.Count == 0)
             return Ok(new RespuestaChatDto(
                 "No encontre informacion publicada para tu perfil sobre ese tema.",
                 Array.Empty<EnlaceChatDto>()));
 
-        // Solo datos necesarios de publicaciones; sin contraseñas, tokens ni datos de otros usuarios.
+        // Los datos academicos son estructurados: se entregan tal cual, sin que el modelo los redacte,
+        // para no mezclar grupos, horarios o docentes. Tampoco ocupan el cupo de generacion.
+        var textoAcademico = ChatbotFuentesAcademicasService.Redactar(academicas);
+        if (candidatas.Count == 0)
+            return Ok(new RespuestaChatDto(textoAcademico, academicas.Select(Enlace).ToList()));
+
+        // Solo datos autorizados para este usuario; sin contraseñas, tokens ni datos de otros usuarios.
         var contexto = new StringBuilder();
         for (var i = 0; i < candidatas.Count; i++)
         {
             var f = candidatas[i];
             contexto.AppendLine($"Fuente {i + 1}: {f.Tipo} - {Recortar(f.Titulo, 160)}");
-            contexto.AppendLine($"Fecha: {f.Fecha}");
-            contexto.AppendLine($"Contenido: {Recortar(f.Contenido, 850)}");
+            contexto.AppendLine($"Fecha: {f.Detalle}");
+            contexto.AppendLine($"Contenido: {Recortar(f.Contenido, f.MaxContenido)}");
             contexto.AppendLine();
         }
 
@@ -186,7 +205,9 @@ public sealed class ChatbotController : ControllerBase
             if (string.IsNullOrWhiteSpace(texto))
                 return StatusCode(502, new { mensaje = "Ollama no devolvio una respuesta util." });
 
-            return Ok(new RespuestaChatDto(texto, candidatas.Select(f => f.Enlace).ToList()));
+            // Publicaciones redactadas por el modelo; datos academicos, si los hay, se anexan sin alterar.
+            if (academicas.Count > 0) texto += "\n\n" + textoAcademico;
+            return Ok(new RespuestaChatDto(texto, candidatas.Concat(academicas).Select(Enlace).ToList()));
         }
         catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
         {

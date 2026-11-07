@@ -68,6 +68,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AudienciaAccesoService>();
+builder.Services.AddScoped<ChatbotFuentesAcademicasService>();
 
 builder.Services.AddAuthentication(options =>
 {
