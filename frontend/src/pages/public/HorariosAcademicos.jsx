@@ -6,6 +6,7 @@ import { ID_SECCION_MIS_MATERIAS } from "../../components/profile/MisMateriasOfe
 import { ROLES, normalizeRole } from "../../constants/roles";
 import { isApiDataSource } from "../../config/appConfig";
 import {
+  agregarGrupoOferta,
   agregarMateriaOferta,
   quitarMateriaOferta,
   obtenerMisMateriasOferta,
@@ -124,6 +125,32 @@ export const HorariosAcademicos = () => {
     }
   };
 
+  const [agregandoGrupo, setAgregandoGrupo] = useState(false);
+  const [avisoMisMaterias, setAvisoMisMaterias] = useState("");
+
+  // Agrega todas las materias del grupo consultado y recarga la lista real desde la API.
+  const agregarGrupoCompleto = async () => {
+    const idGrupo = detalle?.grupo?.idGrupoOferta;
+    if (!esAlumno || !idGrupo || agregandoGrupo || unidadEnOperacion !== null) return;
+    setAgregandoGrupo(true);
+    setErrorMisMaterias("");
+    setAvisoMisMaterias("");
+    try {
+      const respuesta = await agregarGrupoOferta(idGrupo);
+      setAvisoMisMaterias(respuesta?.mensaje || "Grupo agregado a tus materias.");
+      setMisMaterias(lista(await obtenerMisMateriasOferta()));
+    } catch (err) {
+      setErrorMisMaterias(mensajeError(err));
+    } finally {
+      setAgregandoGrupo(false);
+    }
+  };
+
+  const unidadesDelGrupo = detalle?.unidades || [];
+  const faltanDelGrupo = unidadesDelGrupo.filter(
+    (u) => !misMaterias.some((m) => m.idUnidadOferta === u.idUnidadOferta)
+  ).length;
+
   const realizarBusqueda = async (evento) => {
     evento.preventDefault();
     const materia = busqueda.trim();
@@ -215,9 +242,28 @@ export const HorariosAcademicos = () => {
             {cargandoGrupo && <p className="text-sm text-slate-500" role="status">Cargando horario…</p>}
             {detalle && !cargandoGrupo && (
               <div className="space-y-4">
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {detalle.grupo?.codigoGrupo} · {detalle.grupo?.periodo} · Plan {detalle.grupo?.plan}
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {detalle.grupo?.codigoGrupo} · {detalle.grupo?.periodo} · Plan {detalle.grupo?.plan}
+                  </p>
+                  {esAlumno && unidadesDelGrupo.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={agregarGrupoCompleto}
+                      disabled={cargandoMisMaterias || agregandoGrupo || unidadEnOperacion !== null || faltanDelGrupo === 0}
+                      className="rounded-lg border border-[#6F1D46] px-4 py-2 text-sm font-semibold text-[#6F1D46] transition hover:bg-[#6F1D46]/10 disabled:opacity-50 dark:border-pink-200 dark:text-pink-200 dark:hover:bg-pink-200/10"
+                    >
+                      {agregandoGrupo
+                        ? "Agregando…"
+                        : faltanDelGrupo === 0
+                          ? "Ya tienes todo el grupo"
+                          : `Agregar el grupo completo (${faltanDelGrupo})`}
+                    </button>
+                  )}
+                </div>
+                {esAlumno && avisoMisMaterias && (
+                  <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{avisoMisMaterias}</p>
+                )}
                 {(detalle.unidades || []).map((unidad) => (
                   <article key={unidad.idUnidadOferta} className="rounded-xl border border-slate-200 p-4 dark:border-slate-600">
                     <div className="flex flex-wrap items-center gap-2">

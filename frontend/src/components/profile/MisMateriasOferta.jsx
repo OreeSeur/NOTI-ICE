@@ -5,7 +5,11 @@ import { AlertTriangle, CalendarDays, Plus } from "lucide-react";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { isApiDataSource } from "../../config/appConfig";
 import { ROUTES } from "../../constants/routes";
-import { obtenerMisMateriasOferta, quitarMateriaOferta } from "../../services/ofertaAcademicaService";
+import {
+  obtenerMisMateriasOferta,
+  quitarMateriaOferta,
+  quitarTodasMisMateriasOferta,
+} from "../../services/ofertaAcademicaService";
 
 // Sección única del perfil del Alumno: sus materias de los horarios (oferta por periodo),
 // presentadas como horario semanal y como lista. Son selecciones voluntarias del portal,
@@ -154,6 +158,23 @@ export const MisMateriasOferta = () => {
   // Confirmación con el modal del portal: los diálogos nativos (window.confirm) pueden estar
   // bloqueados en algunos navegadores y devolver "Cancelar" sin mostrarse.
   const [porQuitar, setPorQuitar] = useState(null);
+  const [confirmarTodas, setConfirmarTodas] = useState(false);
+  const [quitandoTodas, setQuitandoTodas] = useState(false);
+
+  const quitarTodas = async () => {
+    setConfirmarTodas(false);
+    if (quitandoTodas || quitando !== null) return;
+    setQuitandoTodas(true);
+    setError("");
+    try {
+      await quitarTodasMisMateriasOferta();
+      setMaterias([]);
+    } catch (err) {
+      setError(err?.message || "No se pudieron quitar las materias.");
+    } finally {
+      setQuitandoTodas(false);
+    }
+  };
 
   const quitar = async (materia) => {
     setPorQuitar(null);
@@ -230,6 +251,22 @@ export const MisMateriasOferta = () => {
       )}
 
       {lista.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-semibold text-slate-800 dark:text-white">
+            {lista.length} materia{lista.length === 1 ? "" : "s"} seleccionada{lista.length === 1 ? "" : "s"}
+          </h3>
+          <button
+            type="button"
+            disabled={quitandoTodas || quitando !== null}
+            onClick={() => setConfirmarTodas(true)}
+            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
+          >
+            {quitandoTodas ? "Quitando…" : "Quitar todas las materias"}
+          </button>
+        </div>
+      )}
+
+      {lista.length > 0 && (
         <ul className="space-y-3">
           {lista.map((materia, indice) => (
             <li key={materia.idUnidadOferta} className="rounded-xl border border-slate-200 p-4 dark:border-slate-600">
@@ -279,6 +316,15 @@ export const MisMateriasOferta = () => {
         confirmLabel="Quitar"
         onConfirm={() => quitar(porQuitar)}
         onCancel={() => setPorQuitar(null)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmarTodas}
+        title="Quitar todas las materias"
+        message={`¿Quitar las ${lista.length} materias de tu perfil? Tu horario quedará vacío y dejarás de recibir sus avisos. Puedes volver a agregarlas desde la consulta de horarios.`}
+        confirmLabel="Quitar todas"
+        onConfirm={quitarTodas}
+        onCancel={() => setConfirmarTodas(false)}
       />
     </section>
   );

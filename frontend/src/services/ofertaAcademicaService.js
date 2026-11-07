@@ -47,3 +47,8 @@ export const agregarMateriaOferta = (idUnidadOferta) =>
   post("/oferta-academica/mis-materias", { idUnidadOferta });
 export const quitarMateriaOferta = (idUnidadOferta) =>
   remove(`/oferta-academica/mis-materias/${encodeURIComponent(idUnidadOferta)}`);
+// Todas las materias y laboratorios publicados de un grupo, en una sola operación.
+export const agregarGrupoOferta = (idGrupoOferta) =>
+  post("/oferta-academica/mis-materias/grupo", { idGrupoOferta });
+// Da de baja todas las materias seleccionadas por el alumno.
+export const quitarTodasMisMateriasOferta = () => remove("/oferta-academica/mis-materias");
