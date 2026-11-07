@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MisInscripcionesOficiales } from "./MisInscripcionesOficiales";
-import { AutoInscripcionesOficiales } from "./AutoInscripcionesOficiales";
 import { MisGruposDocentes } from "./MisGruposDocentes";
 import { isMockDataSource } from "../../config/appConfig";
 import {
@@ -684,12 +683,14 @@ export const AcademicProfileSection = ({ user, onSaveAcademicProfile }) => {
 
   if (role === ROLES.ALUMNO) {
     // Conservar la pantalla anterior solo cuando se use explícitamente el modo mock.
+    // Con la API, las materias del alumno se muestran en «Mis materias y horario»
+    // (MisMateriasOferta, oferta por periodo); los grupos antiguos ya no se ofrecen aquí.
     return isMockDataSource() ? (
       <>
         <MisInscripcionesOficiales />
         <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />
       </>
-    ) : <AutoInscripcionesOficiales />;
+    ) : null;
   }
 
   if (role === ROLES.DOCENTE) {

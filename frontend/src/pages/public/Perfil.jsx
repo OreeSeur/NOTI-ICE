@@ -193,7 +193,8 @@ export const Perfil = () => {
       <ProfileSummaryCard usuario={usuarioPreview} />
 
       <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-8">
+        {/* min-w-0: el horario semanal desplaza solo su tabla, sin ensanchar la columna. */}
+        <div className="min-w-0 space-y-8">
           <ProfileInfoForm
             formData={formData}
             errors={errors}
@@ -208,14 +209,15 @@ export const Perfil = () => {
             onSaveAcademicProfile={handleAcademicProfileSave}
           />
 
-          {esAlumno && <MisMateriasOferta />}
-
-          <Link
-            to={ROUTES.HORARIOS}
-            className="inline-flex items-center justify-center rounded-lg bg-[#6F1D46] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            Consultar materias y horarios académicos
-          </Link>
+          {/* El alumno agrega materias desde su sección; los demás roles consultan los horarios aquí. */}
+          {esAlumno ? <MisMateriasOferta /> : (
+            <Link
+              to={ROUTES.HORARIOS}
+              className="inline-flex items-center justify-center rounded-lg bg-[#6F1D46] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Consultar materias y horarios académicos
+            </Link>
+          )}
           <SubscriptionPreferences
             subscriptions={subscriptions}
             onToggleTopic={handleToggleTopic}

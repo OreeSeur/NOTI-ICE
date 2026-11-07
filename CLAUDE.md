@@ -188,7 +188,7 @@ Se registraron vacías: `categorias`, `noticias`, `noticiasdocumentos`, `comenta
 **Cambios del 7 nov. 2026 (tarde), autorizados por el usuario en la base local:**
 - El usuario creó con `root` la tabla `ofertasolicitudesdocentes` (script `20261107_solicitudes_docentes_SOLO_PRUEBAS.sql`). Ahora son 23 tablas.
 - Para la prueba del flujo de solicitudes, el usuario creó dos cuentas de prueba: `docente.prueba@prueba.local` (Docente) y `alumno.prueba@prueba.local` (Alumno).
-- Durante la prueba se crearon: 1 selección del Alumno (1CM10 · Fundamentos de Programación, unidad 32), 2 solicitudes del Docente (una Aprobada y una Rechazada) y 1 evento titulado «PRUEBA - Asesoría de Fundamentos de Programación 1CM10». En la prueba de noticias de docentes se agregó 1 noticia del Docente, «PRUEBA - Noticia del docente (editada)», dirigida al rol Alumno.
+- Durante la prueba se crearon: 4 selecciones del Alumno (1CM10: Fundamentos de Programación —unidad 32—, su laboratorio e Introducción al Álgebra Lineal; 1CM11: Mecánica Newtoniana, que se empalma a propósito), 2 solicitudes del Docente (una Aprobada y una Rechazada) y 1 evento titulado «PRUEBA - Asesoría de Fundamentos de Programación 1CM10». En la prueba de noticias de docentes se agregó 1 noticia del Docente, «PRUEBA - Noticia del docente (editada)», dirigida al rol Alumno.
 - Siguen pendientes de decisión del usuario: conservarlos, desactivarlos o borrarlos.
 
 `Computacion` y `Humanidades V`, ambas con identificador 1 en sus respectivas tablas, fueron eliminadas con autorización después de revisar relaciones. Se verificó la conservación del Administrador y la oferta. No volver a introducir esos ejemplos con una semilla antigua.

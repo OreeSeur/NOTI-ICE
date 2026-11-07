@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/auth/useAuth";
+import { ROUTES } from "../../constants/routes";
+import { ID_SECCION_MIS_MATERIAS } from "../../components/profile/MisMateriasOferta";
 import { ROLES, normalizeRole } from "../../constants/roles";
 import { isApiDataSource } from "../../config/appConfig";
 import {
@@ -187,10 +190,18 @@ export const HorariosAcademicos = () => {
           </section>
 
           {esAlumno && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Puedes agregar libremente cada materia o laboratorio que cursas. Tus selecciones
-              se guardarán en tu perfil, pero no son inscripciones escolares certificadas.
-            </p>
+            <div className="flex flex-col gap-2 rounded-xl border border-[#6F1D46]/20 bg-[#6F1D46]/5 p-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between dark:border-pink-300/20 dark:bg-pink-300/5 dark:text-slate-200">
+              <p>
+                Elige tu grupo y pulsa «Agregar a mis materias» en cada materia o laboratorio que cursas
+                ({misMaterias.length} agregada{misMaterias.length === 1 ? "" : "s"}). No son inscripciones escolares certificadas.
+              </p>
+              <Link
+                to={`${ROUTES.PERFIL}#${ID_SECCION_MIS_MATERIAS}`}
+                className="shrink-0 font-semibold text-[#6F1D46] hover:underline dark:text-pink-200"
+              >
+                Ver mi horario en el perfil
+              </Link>
+            </div>
           )}
           {esAlumno && errorMisMaterias && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-300">
