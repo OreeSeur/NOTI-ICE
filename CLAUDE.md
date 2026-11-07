@@ -82,6 +82,7 @@ NOTI-ICE/
     backend/                      Pendientes del backend y límites del chatbot
     despliegue/                   Respaldos y recuperación
     pruebas/                      Arranque local (00), checklist y pruebas con Ollama
+    desarrollo/                   Prompt inicial para sesiones de Claude Code
   deploy/production/              Plantillas y documentación del servidor
 ```
 

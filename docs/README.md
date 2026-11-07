@@ -30,6 +30,12 @@ numerada en el orden de lectura recomendado.
 
 La guía operativa del servidor está en [`deploy/production/README.md`](../deploy/production/README.md).
 
+## Desarrollo
+
+| Documento | Contenido |
+|---|---|
+| [01-prompt-inicial-claude-code.md](desarrollo/01-prompt-inicial-claude-code.md) | Prompt y reglas para iniciar una sesión de Claude Code en local. |
+
 ## Pruebas
 
 | Documento | Contenido |
