@@ -123,7 +123,7 @@ Backend: `Program.cs` registra MySQL, JWT, servicios de audiencia y correo, CORS
 Roles reales, con mayúsculas exactas compartidas entre BD, JWT y frontend:
 
 - `Administrador`: administración de usuarios, catálogos y contenido.
-- `Docente`: publicación y gestión de contenido propio, con restricciones de audiencia/asignación que deben comprobarse en backend.
+- `Docente`: publicación y gestión de contenido propio, con restricciones de audiencia/asignación que deben comprobarse en backend. Desde el 7 nov. 2026 publica, edita y elimina **noticias**, eventos y documentos propios; el backend responde 403 sobre los de otro autor. El `Administrador` puede editar cualquiera y conserva al autor original. El autor ve su publicación y sus comentarios aunque no pertenezca a la audiencia. Borrar comentarios sigue siendo solo del Administrador.
 - `Alumno`: consulta, perfil, preferencias y selección académica.
 
 `superadmin`, `personal`, `editor` y otros nombres presentes en compatibilidad del frontend **no son roles adicionales vigentes**. `frontend/src/constants/roles.js` es la referencia actual; el documento antiguo de roles describe cinco y quedó desactualizado.
@@ -138,7 +138,7 @@ Reglas esenciales:
 - Los adjuntos no se sirven como archivos estáticos públicos: descarga mediante API y validación de audiencia.
 - Las suscripciones/selecciones académicas del portal **no son inscripciones escolares oficiales del IPN**, aunque existan componentes con “Oficiales” en su nombre.
 - Las asignaciones de docentes publicadas en horarios no equivalen a cuentas de usuario ni acreditan por sí solas permisos para publicar.
-- **Solicitudes de docentes (7 nov. 2026):** un `Docente` solicita impartir una materia o laboratorio (`ofertaunidades`). Cualquier `Administrador` activo la aprueba, rechaza o revoca; gana la primera resolución, y rechazar o revocar exige motivo. Hay un solo docente aprobado por unidad, garantizado además por un índice único en la BD; al aprobar, las demás pendientes de esa unidad se rechazan. Solo una solicitud `Aprobada` permite al docente elegir esa unidad en `audiencia.unidadesOferta` al publicar eventos y documentos; el Docente sigue sin crear noticias. Esas publicaciones las ven los alumnos que agregaron la unidad, el docente aprobado y la administración (`AudienciaAccesoService`). No es una asignación oficial del IPN.
+- **Solicitudes de docentes (7 nov. 2026):** un `Docente` solicita impartir una materia o laboratorio (`ofertaunidades`). Cualquier `Administrador` activo la aprueba, rechaza o revoca; gana la primera resolución, y rechazar o revocar exige motivo. Hay un solo docente aprobado por unidad, garantizado además por un índice único en la BD; al aprobar, las demás pendientes de esa unidad se rechazan. Solo una solicitud `Aprobada` permite al docente elegir esa unidad en `audiencia.unidadesOferta` al publicar noticias, eventos y documentos. Esas publicaciones las ven los alumnos que agregaron la unidad, el docente aprobado y la administración (`AudienciaAccesoService`). No es una asignación oficial del IPN.
 
 ## 6. Funcionalidades y lugares de entrada
 
@@ -188,7 +188,7 @@ Se registraron vacías: `categorias`, `noticias`, `noticiasdocumentos`, `comenta
 **Cambios del 7 nov. 2026 (tarde), autorizados por el usuario en la base local:**
 - El usuario creó con `root` la tabla `ofertasolicitudesdocentes` (script `20261107_solicitudes_docentes_SOLO_PRUEBAS.sql`). Ahora son 23 tablas.
 - Para la prueba del flujo de solicitudes, el usuario creó dos cuentas de prueba: `docente.prueba@prueba.local` (Docente) y `alumno.prueba@prueba.local` (Alumno).
-- Durante la prueba se crearon: 1 selección del Alumno (1CM10 · Fundamentos de Programación, unidad 32), 2 solicitudes del Docente (una Aprobada y una Rechazada) y 1 evento titulado «PRUEBA - Asesoría de Fundamentos de Programación 1CM10».
+- Durante la prueba se crearon: 1 selección del Alumno (1CM10 · Fundamentos de Programación, unidad 32), 2 solicitudes del Docente (una Aprobada y una Rechazada) y 1 evento titulado «PRUEBA - Asesoría de Fundamentos de Programación 1CM10». En la prueba de noticias de docentes se agregó 1 noticia del Docente, «PRUEBA - Noticia del docente (editada)», dirigida al rol Alumno.
 - Siguen pendientes de decisión del usuario: conservarlos, desactivarlos o borrarlos.
 
 `Computacion` y `Humanidades V`, ambas con identificador 1 en sus respectivas tablas, fueron eliminadas con autorización después de revisar relaciones. Se verificó la conservación del Administrador y la oferta. No volver a introducir esos ejemplos con una semilla antigua.
