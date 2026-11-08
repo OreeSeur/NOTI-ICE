@@ -9,10 +9,10 @@ Qué recibe la otra persona:
 | Por dónde | Qué |
 |---|---|
 | GitHub | El código: `https://github.com/OreeSeur/NOTI-ICE` |
-| En privado (USB, mensaje directo) | El archivo `noti_ice_local.sql` y la contraseña del Administrador |
+| En privado (USB, mensaje directo) | El archivo `noti_ice_local.sql` y `CUENTAS_ENTREGA.txt` (correos y contraseñas de las cuentas) |
 
-El archivo `.sql` **no se sube a Git ni a un enlace público**: contiene el hash de la contraseña
-del Administrador.
+Ninguno de los dos archivos **se sube a Git ni a un enlace público**: el `.sql` contiene hashes de
+contraseñas y el `.txt` las contraseñas.
 
 ---
 
@@ -37,6 +37,21 @@ powershell -ExecutionPolicy Bypass -File database\entrega\Generar-BD-Entrega.ps1
 - Al terminar muestra cuántos registros tiene cada tabla, para revisar la entrega.
 
 Los archivos adjuntos (carpeta de uploads) no se incluyen; como las publicaciones se vacían, no hacen falta.
+
+### Entrega con cuentas propias (recomendado)
+
+Para no compartir tu Administrador personal, la entrega puede llevar **otras tres cuentas**:
+un Administrador, un Docente y un Alumno. Se necesita un archivo con sus `INSERT` (solo hashes
+BCrypt), guardado **fuera** del repositorio, por ejemplo `C:\dev\entrega-noti-ice\cuentas_entrega.sql`,
+y su lista de credenciales `CUENTAS_ENTREGA.txt` para pasarla en privado.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File database\entrega\Generar-BD-Entrega.ps1 -SqlCuentas C:\dev\entrega-noti-ice\cuentas_entrega.sql
+```
+
+Con `-SqlCuentas` el script borra **todos** los usuarios de la copia, incluido tu Administrador,
+inserta las cuentas del archivo y se detiene si no quedan exactamente un Administrador, un Docente y
+un Alumno activos. Tu base de trabajo no cambia.
 
 ---
 
@@ -99,7 +114,8 @@ SELECT COUNT(*) AS grupos FROM ofertagrupos;
 EXIT;
 ```
 
-Debe mostrar `usuarios = 1` y `grupos = 175`. En `SOURCE` usa diagonales `/` en la ruta.
+Debe mostrar `usuarios = 3` (o `1` si la entrega lleva solo un Administrador) y `grupos = 175`.
+En `SOURCE` usa diagonales `/` en la ruta.
 
 ### 4. Configuración privada del backend
 
@@ -151,8 +167,8 @@ npm run dev:ollama
 
 `npm ci` solo hace falta la primera vez o cuando cambie `package-lock.json`.
 
-Abre http://localhost:5173 e inicia sesión con el correo y la contraseña del Administrador que te
-pasaron en privado.
+Abre http://localhost:5173 e inicia sesión con una de las cuentas de `CUENTAS_ENTREGA.txt`
+(Administrador, Docente o Alumno).
 
 ### 6. Comprobar que todo funciona
 
@@ -165,7 +181,10 @@ pasaron en privado.
 | Asistente (botón redondo) → «¿Cuál es el horario del grupo 1CM10?» | El horario exacto del grupo |
 | Asistente → «¿Qué noticias hay?» | «No encontre informacion publicada para tu perfil…» (normal: no hay noticias) |
 
-Para probar como Docente o Alumno, créalos desde **Administración → Nuevo usuario**.
+Con las cuentas de Docente y Alumno se puede probar el flujo completo: el Alumno agrega materias
+en `/horarios`, el Docente las solicita en «Mis materias», el Administrador las aprueba en
+«Solicitudes de docentes» y el Docente publica para esos alumnos. Para más cuentas, usa
+**Administración → Nuevo usuario**.
 
 ### 7. Actualizar a cambios nuevos
 

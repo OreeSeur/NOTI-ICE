@@ -20,6 +20,10 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File database\entrega\Generar-BD-Entrega.ps1
   powershell -ExecutionPolicy Bypass -File database\entrega\Generar-BD-Entrega.ps1 -Usuario root -Salida C:\dev\entrega\noti_ice_local.sql
+
+.EXAMPLE
+  # Entrega con cuentas propias en lugar del Administrador de origen:
+  powershell -ExecutionPolicy Bypass -File database\entrega\Generar-BD-Entrega.ps1 -SqlCuentas C:\dev\entrega-noti-ice\cuentas_entrega.sql
 #>
 param(
     [string]$Usuario = "root",
@@ -28,7 +32,10 @@ param(
     [string]$BaseOrigen = "portal_noticias_pruebas",
     [string]$BaseTemporal = "noti_ice_entrega_tmp",
     [string]$Salida = "C:\dev\entrega-noti-ice\noti_ice_local.sql",
-    [string]$BinMySql = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
+    [string]$BinMySql = "C:\Program Files\MySQL\MySQL Server 8.0\bin",
+    # Opcional: archivo con INSERT de cuentas (hashes BCrypt) que sustituyen a TODOS los usuarios,
+    # incluido el Administrador de origen. Debe dejar 1 Administrador, 1 Docente y 1 Alumno activos.
+    [string]$SqlCuentas = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,7 +50,14 @@ if ($BaseTemporal -eq $BaseOrigen) { throw "La base temporal no puede ser la de 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $salidaCompleta = [IO.Path]::GetFullPath($Salida)
 if ($salidaCompleta.StartsWith($repo, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "La salida no puede quedar dentro del repositorio ($repo): contiene el hash del Administrador."
+    throw "La salida no puede quedar dentro del repositorio ($repo): contiene hashes de contraseñas."
+}
+if ($SqlCuentas) {
+    if (-not (Test-Path $SqlCuentas)) { throw "No existe el archivo de cuentas $SqlCuentas." }
+    $SqlCuentas = (Resolve-Path $SqlCuentas).Path
+    if ($SqlCuentas.StartsWith($repo, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "El archivo de cuentas no debe estar dentro del repositorio."
+    }
 }
 
 # Tablas de actividad que se vacían. Catálogos, roles y oferta académica se conservan.
@@ -91,7 +105,7 @@ try {
 SELECT COUNT(*) FROM usuarios u JOIN nombrerol r ON r.idRol = u.idRol
 WHERE r.NombreRol = 'Administrador' AND u.Activo = 1;
 "@
-    if ("$admins".Trim() -ne "1") {
+    if (-not $SqlCuentas -and "$admins".Trim() -ne "1") {
         throw "Se esperaba exactamente 1 Administrador activo y hay $("$admins".Trim()). No se generó la entrega."
     }
 
@@ -106,6 +120,21 @@ UPDATE usuarios SET TokenRecuperacionHash = NULL, TokenRecuperacionExpira = NULL
 SET FOREIGN_KEY_CHECKS=1;
 "@
     Invoke-MySql $BaseTemporal $limpieza | Out-Null
+
+    if ($SqlCuentas) {
+        Write-Host "    Sustituyendo los usuarios por las cuentas de $SqlCuentas..."
+        Invoke-MySql $BaseTemporal "SET FOREIGN_KEY_CHECKS=0; DELETE FROM usuarios; SET FOREIGN_KEY_CHECKS=1;" | Out-Null
+        Invoke-MySql $BaseTemporal ("SOURCE " + $SqlCuentas.Replace("\", "/") + ";") | Out-Null
+        $porRol = Invoke-MySql $BaseTemporal @"
+SELECT CONCAT(r.NombreRol, '=', COUNT(u.idUsuario)) FROM nombrerol r
+LEFT JOIN usuarios u ON u.idRol = r.idRol AND u.Activo = 1
+WHERE r.NombreRol IN ('Administrador', 'Docente', 'Alumno') GROUP BY r.NombreRol ORDER BY r.NombreRol;
+"@
+        $total = Invoke-MySql $BaseTemporal "SELECT COUNT(*) FROM usuarios;"
+        if ((@($porRol) -join ",") -ne "Administrador=1,Alumno=1,Docente=1" -or "$total".Trim() -ne "3") {
+            throw "Las cuentas deben quedar como 1 Administrador, 1 Docente y 1 Alumno activos; quedó: $(@($porRol) -join ', '). No se generó la entrega."
+        }
+    }
 
     $conteo = @(
         "usuarios", "nombrerol", "catalogomateriasplanes", "ofertaperiodos", "ofertagrupos",
