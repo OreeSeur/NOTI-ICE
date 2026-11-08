@@ -39,6 +39,10 @@ privada entregada por el responsable del proyecto. Nunca se transfiere por Git.
 Con esa copia, crea una base y un usuario propios de desarrollo y restaura el
 respaldo en ella.
 
+Para generar esa copia limpia (solo el Administrador y los datos académicos) y
+instalarla paso a paso en otro equipo, sigue
+[03-instalacion-en-otro-equipo.md](03-instalacion-en-otro-equipo.md).
+
 ## 4. Configuración privada del backend
 
 El backend no lee archivos `.env`. Usa User Secrets o

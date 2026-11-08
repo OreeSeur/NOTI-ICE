@@ -239,7 +239,9 @@ Herramientas externas en `../output/auditoria-bd/`:
 - `base-local-verificada.sql`: **solo las 15 tablas antiguas**, 14 filas de catálogos de ejemplo y cero usuarios. Destino `noti_ice_demo_local`; no es la base final de 22 tablas, no incluye la oferta y no fue ejecutado en aquella auditoría.
 - `EXPORTACIONES.md` e `INSTALACION-LOCAL.md`: instrucciones históricas, con sus límites.
 
-Para el compañero, la guía más reciente propone una copia privada de la base local revisada y restauración en una base nueva `noti_ice_local`. Ese respaldo conserva el hash del Administrador: transferirlo privadamente, nunca por Git. La guía registró que aún no se había generado/enviado el respaldo ni probado la instalación en el equipo del compañero. Una alternativa pendiente es un instalador completo sin cuentas reales y con alta segura de un administrador propio.
+**Entrega al compañero (7 nov. 2026):** `database/entrega/Generar-BD-Entrega.ps1` genera una copia limpia sin modificar la base de trabajo. Copia a una base temporal, deja solo el Administrador activo, los roles, los catálogos y la oferta, vacía la actividad y borra las cuentas de prueba. Pide la contraseña de MySQL de forma oculta y no guarda la salida dentro del repositorio. El usuario lo ejecutó; resultado verificado en `C:\dev\entrega-noti-ice\noti_ice_local.sql` (0.48 MB): 1 usuario, 3 roles, 191 materias del catálogo, 175 grupos, 1,715 unidades, 3,205 sesiones, 2,406 docentes publicados, y tablas de actividad vacías. La guía de instalación es `docs/pruebas/03-instalacion-en-otro-equipo.md`. Sigue pendiente la prueba real de restauración en el equipo del compañero.
+
+Antecedente: la guía externa anterior proponía una copia privada de la base local revisada y restauración en una base nueva `noti_ice_local`. Ese respaldo conserva el hash del Administrador: transferirlo privadamente, nunca por Git. La guía registró que aún no se había generado/enviado el respaldo ni probado la instalación en el equipo del compañero. Una alternativa pendiente es un instalador completo sin cuentas reales y con alta segura de un administrador propio.
 
 ## 10. Arranque local actual con Ollama
 

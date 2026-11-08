@@ -43,6 +43,7 @@ La guía operativa del servidor está en [`deploy/production/README.md`](../depl
 | [00-arranque-local.md](pruebas/00-arranque-local.md) | Cómo ejecutar frontend, backend y MySQL en local, con problemas frecuentes. |
 | [01-checklist-pruebas-frontend.md](pruebas/01-checklist-pruebas-frontend.md) | Pruebas manuales del frontend antes de integrar backend. |
 | [02-pruebas-locales-ollama.md](pruebas/02-pruebas-locales-ollama.md) | Cómo probar el asistente con Ollama en local. |
+| [03-instalacion-en-otro-equipo.md](pruebas/03-instalacion-en-otro-equipo.md) | Instalación completa en otro equipo: programas, base limpia de entrega, configuración y verificación. |
 
 ## Otros README
 
