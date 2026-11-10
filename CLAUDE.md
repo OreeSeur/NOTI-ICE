@@ -45,11 +45,13 @@ Hitos cercanos en el historial:
 
 ## 3. Ubicación y estructura
 
-Carpeta del trabajo en este equipo:
+Copia de trabajo del repositorio en este equipo (desde el 10 nov. 2026):
 
-`C:\Users\range\OneDrive\Documents\ChatGPT\NOTI ICE _ DESARROLLO Y DESPLIEGUE`
+`C:\dev\NOTI-ICE`
 
-El repositorio Git está en la subcarpeta `NOTI-ICE`; los comandos siguientes parten de esa raíz salvo indicación contraria.
+Los comandos siguientes parten de esa raíz salvo indicación contraria. Hay un acceso directo `NOTI-ICE` en el escritorio que la abre.
+
+La copia anterior, `C:\Users\range\OneDrive\Documents\ChatGPT\NOTI ICE _ DESARROLLO Y DESPLIEGUE\NOTI-ICE`, quedó desactualizada (16 commits atrás el 10 nov. 2026, sin cambios propios): **no usarla para programar**. Su carpeta padre sigue guardando los materiales externos descritos abajo; en este documento, las rutas `../output/` se refieren a esa carpeta de OneDrive, no a `C:\dev`.
 
 ```text
 NOTI-ICE/
@@ -86,7 +88,7 @@ NOTI-ICE/
   deploy/production/              Plantillas y documentación del servidor
 ```
 
-Fuera del repositorio, dentro de la carpeta de trabajo:
+Fuera del repositorio, en `C:\Users\range\OneDrive\Documents\ChatGPT\NOTI ICE _ DESARROLLO Y DESPLIEGUE`:
 
 - `output/NOTI_ICE_guia_local.md`: revisión local del 7 de noviembre y entrega al compañero.
 - `output/auditoria-bd/`: informe y herramientas de auditoría del 29 de octubre.
