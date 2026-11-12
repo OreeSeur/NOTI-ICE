@@ -64,7 +64,7 @@ if ($SqlCuentas) {
 $tablasActividad = @(
     "noticiascomentarios", "comentarios", "noticiasdocumentos", "noticias", "eventos",
     "notificacionesleidas", "usuariospreferencias", "ofertainscripcionesalumnos",
-    "ofertasolicitudesdocentes", "gruposalumnos"
+    "ofertasolicitudesdocentes"
 )
 
 $seguro = Read-Host "Contraseña de MySQL para '$Usuario'" -AsSecureString
@@ -138,7 +138,7 @@ WHERE r.NombreRol IN ('Administrador', 'Docente', 'Alumno') GROUP BY r.NombreRol
 
     $conteo = @(
         "usuarios", "nombrerol", "catalogomateriasplanes", "ofertaperiodos", "ofertagrupos",
-        "ofertaunidades", "ofertasesiones", "ofertadocentesunidad", "grupostipos"
+        "ofertaunidades", "ofertasesiones", "ofertadocentesunidad", "academias"
     ) + $vaciar
     $sqlConteo = ($conteo | Where-Object { $existentes -contains $_ } |
         ForEach-Object { "SELECT '$_', COUNT(*) FROM ``$_``" }) -join " UNION ALL "

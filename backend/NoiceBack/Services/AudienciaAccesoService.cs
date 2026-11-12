@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortalNoticiasAPI.Data;
+using PortalNoticiasAPI.DTOs;
 using PortalNoticiasAPI.Models;
 
 namespace PortalNoticiasAPI.Services
@@ -12,80 +13,120 @@ namespace PortalNoticiasAPI.Services
     // Las categorías son temas de suscripción, no criterios de autorización.
     public sealed class AudienciaAccesoService
     {
+        private const int MaxDestinos = 30;
         private readonly PortalNoticiasContext _context;
-        private HashSet<int> _gruposValidos = new();
         private HashSet<int> _unidadesValidas = new();
+        private HashSet<int> _gruposOfertaValidos = new();
+        private HashSet<int> _academiasValidas = new();
 
         public AudienciaAccesoService(PortalNoticiasContext context) => _context = context;
 
+        // Calcula a que materias, grupos de horario y academias pertenece el usuario.
         // Se utiliza tanto en GET de publicaciones como al enviar correos.
-        public async Task PrepararGruposAsync(Usuario? usuario)
+        //  - Alumno: sus suscripciones activas (materias que agrego a su perfil).
+        //  - Docente: sus solicitudes Aprobadas por un Administrador.
+        // Grupos y academias solo cuentan si el grupo y su periodo siguen activos.
+        public async Task PrepararDestinosAsync(Usuario? usuario)
         {
-            _gruposValidos.Clear();
-            _unidadesValidas.Clear();
+            _unidadesValidas = new();
+            _gruposOfertaValidos = new();
+            _academiasValidas = new();
             if (usuario == null) return;
 
+            List<PertenenciaUnidad> filas;
             if (usuario.Rol?.Nombre == "Alumno")
             {
-                _gruposValidos = (await _context.GruposAlumnos.AsNoTracking()
-                    .Where(i => i.IdUsuario == usuario.IdUsuario && i.Activo &&
-                                i.Grupo != null && i.Grupo.Activo)
-                    .Select(i => i.IdGrupo).ToListAsync()).ToHashSet();
-                // Materias de los horarios que el alumno agrego a su perfil.
-                _unidadesValidas = (await _context.OfertaInscripcionesAlumnos.AsNoTracking()
+                filas = await _context.OfertaInscripcionesAlumnos.AsNoTracking()
                     .Where(i => i.IdUsuario == usuario.IdUsuario && i.Activo)
-                    .Select(i => i.IdUnidadOferta).ToListAsync()).ToHashSet();
+                    .Select(i => new PertenenciaUnidad(
+                        i.IdUnidadOferta,
+                        i.Unidad.IdGrupoOferta,
+                        i.Unidad.MateriaCatalogo != null ? i.Unidad.MateriaCatalogo.IdAcademia : null,
+                        i.Unidad.Grupo.Activo && i.Unidad.Grupo.Periodo.Activo))
+                    .ToListAsync();
             }
             else if (usuario.Rol?.Nombre == "Docente")
             {
-                _gruposValidos = (await _context.Grupos.AsNoTracking()
-                    .Where(g => g.IdUsuario == usuario.IdUsuario && g.Activo)
-                    .Select(g => g.IdGrupo).ToListAsync()).ToHashSet();
-                // Materias de los horarios con asignacion aprobada por un Administrador.
-                _unidadesValidas = (await UnidadesAprobadasDe(usuario.IdUsuario)).ToHashSet();
+                filas = await _context.OfertaSolicitudesDocentes.AsNoTracking()
+                    .Where(s => s.IdUsuario == usuario.IdUsuario && s.Estado == EstadosSolicitudDocente.Aprobada)
+                    .Select(s => new PertenenciaUnidad(
+                        s.IdUnidadOferta,
+                        s.Unidad.IdGrupoOferta,
+                        s.Unidad.MateriaCatalogo != null ? s.Unidad.MateriaCatalogo.IdAcademia : null,
+                        s.Unidad.Grupo.Activo && s.Unidad.Grupo.Periodo.Activo))
+                    .ToListAsync();
             }
+            else return;
+
+            _unidadesValidas = filas.Select(f => f.IdUnidad).ToHashSet();
+            _gruposOfertaValidos = filas.Where(f => f.Vigente).Select(f => f.IdGrupo).ToHashSet();
+            _academiasValidas = filas.Where(f => f.Vigente && f.IdAcademia.HasValue)
+                .Select(f => f.IdAcademia!.Value).ToHashSet();
         }
 
-        private Task<List<int>> UnidadesAprobadasDe(int idDocente) =>
-            _context.OfertaSolicitudesDocentes.AsNoTracking()
-                .Where(s => s.IdUsuario == idDocente && s.Estado == EstadosSolicitudDocente.Aprobada)
-                .Select(s => s.IdUnidadOferta).ToListAsync();
+        private sealed record PertenenciaUnidad(int IdUnidad, int IdGrupo, int? IdAcademia, bool Vigente);
 
-        // Docente: solo unidades con su asignacion aprobada y en periodo activo.
-        // Administrador: cualquier unidad activa. Lista vacia = sin restriccion por materia.
-        public async Task<bool> PuedePublicarParaUnidadesAsync(ClaimsPrincipal principal, List<int>? unidades)
+        private static bool ListaValida(List<int>? ids) =>
+            ids != null && ids.Count <= MaxDestinos && ids.All(id => id > 0) && ids.Distinct().Count() == ids.Count;
+
+        // Valida todos los destinos academicos de una publicacion nueva o editada.
+        //  - Administrador: cualquier materia o grupo de un periodo activo y cualquier academia activa.
+        //  - Docente: solo los que contienen una unidad con su solicitud Aprobada (periodo activo).
+        // Rechaza el campo antiguo `grupos` con ids y lo quita del DTO para no volver a guardarlo.
+        public async Task<bool> PuedePublicarAsync(ClaimsPrincipal principal, AudienciaDto audiencia)
         {
-            if (unidades == null || unidades.Count > 30 || unidades.Any(id => id <= 0) ||
-                unidades.Distinct().Count() != unidades.Count) return false;
-            if (unidades.Count == 0) return true;
+            if (audiencia.GruposAntiguos is { Count: > 0 }) return false;
+            audiencia.GruposAntiguos = null;
+            if (!ListaValida(audiencia.UnidadesOferta) || !ListaValida(audiencia.GruposOferta) ||
+                !ListaValida(audiencia.Academias)) return false;
+            if (audiencia.UnidadesOferta.Count == 0 && audiencia.GruposOferta.Count == 0 &&
+                audiencia.Academias.Count == 0) return true;
+
+            var esAdministrador = principal.IsInRole("Administrador");
+            if (!esAdministrador && !principal.IsInRole("Docente")) return false;
             if (!int.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var idAutor)) return false;
 
-            var activas = _context.OfertaUnidades.AsNoTracking()
-                .Where(u => unidades.Contains(u.IdUnidadOferta) && u.Grupo.Activo && u.Grupo.Periodo.Activo);
-            if (!principal.IsInRole("Administrador"))
-            {
-                if (!principal.IsInRole("Docente")) return false;
-                activas = activas.Where(u => _context.OfertaSolicitudesDocentes.Any(s =>
-                    s.IdUnidadOferta == u.IdUnidadOferta && s.IdUsuario == idAutor &&
-                    s.Estado == EstadosSolicitudDocente.Aprobada));
-            }
-            return await activas.CountAsync() == unidades.Count;
-        }
+            // Unidades aprobadas del autor en periodo activo (solo se usa si no es Administrador).
+            var aprobadas = _context.OfertaSolicitudesDocentes.AsNoTracking()
+                .Where(s => s.IdUsuario == idAutor && s.Estado == EstadosSolicitudDocente.Aprobada &&
+                            s.Unidad.Grupo.Activo && s.Unidad.Grupo.Periodo.Activo)
+                .Select(s => s.Unidad);
 
-        public async Task<bool> PuedePublicarParaGruposAsync(ClaimsPrincipal principal, List<int>? grupos)
-        {
-            if (grupos == null || grupos.Count > 30 || grupos.Any(id => id <= 0) ||
-                grupos.Distinct().Count() != grupos.Count) return false;
-            if (grupos.Count == 0) return true;
-            var id = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(id, out var idAutor)) return false;
-            var esAdministrador = principal.IsInRole("Administrador");
-            var permitidos = await _context.Grupos.AsNoTracking()
-                .Where(g => grupos.Contains(g.IdGrupo) && g.Activo &&
-                            g.Materia != null && g.Materia.Activo &&
-                            (esAdministrador || g.IdUsuario == idAutor))
-                .Select(g => g.IdGrupo).CountAsync();
-            return permitidos == grupos.Count;
+            if (audiencia.UnidadesOferta.Count > 0)
+            {
+                var ids = audiencia.UnidadesOferta;
+                var unidades = esAdministrador
+                    ? _context.OfertaUnidades.AsNoTracking()
+                        .Where(u => ids.Contains(u.IdUnidadOferta) && u.Grupo.Activo && u.Grupo.Periodo.Activo)
+                        .Select(u => u.IdUnidadOferta)
+                    : aprobadas.Where(u => ids.Contains(u.IdUnidadOferta)).Select(u => u.IdUnidadOferta);
+                if (await unidades.Distinct().CountAsync() != ids.Count) return false;
+            }
+
+            if (audiencia.GruposOferta.Count > 0)
+            {
+                var ids = audiencia.GruposOferta;
+                var grupos = esAdministrador
+                    ? _context.OfertaGrupos.AsNoTracking()
+                        .Where(g => ids.Contains(g.IdGrupoOferta) && g.Activo && g.Periodo.Activo)
+                        .Select(g => g.IdGrupoOferta)
+                    : aprobadas.Where(u => ids.Contains(u.IdGrupoOferta)).Select(u => u.IdGrupoOferta);
+                if (await grupos.Distinct().CountAsync() != ids.Count) return false;
+            }
+
+            if (audiencia.Academias.Count > 0)
+            {
+                var ids = audiencia.Academias;
+                var activas = _context.Academias.AsNoTracking()
+                    .Where(a => ids.Contains(a.IdAcademia) && a.Activo);
+                if (!esAdministrador)
+                {
+                    activas = activas.Where(a => aprobadas.Any(u =>
+                        u.MateriaCatalogo != null && u.MateriaCatalogo.IdAcademia == a.IdAcademia));
+                }
+                if (await activas.CountAsync() != ids.Count) return false;
+            }
+            return true;
         }
 
         public async Task<Usuario?> UsuarioActualAsync(ClaimsPrincipal principal)
@@ -98,7 +139,7 @@ namespace PortalNoticiasAPI.Services
             // por el cliente o roles desactualizados incluidos en el token.
             var usuario = await _context.Usuarios.Include(u => u.Rol)
                 .FirstOrDefaultAsync(u => u.IdUsuario == id && u.Activo && u.Rol != null && u.Rol.Activo);
-            await PrepararGruposAsync(usuario);
+            await PrepararDestinosAsync(usuario);
             return usuario;
         }
 
@@ -117,15 +158,25 @@ namespace PortalNoticiasAPI.Services
                 var roles = Valores(documento.RootElement, "roles");
                 var carreras = Valores(documento.RootElement, "carreras");
                 var semestres = Valores(documento.RootElement, "semestres");
-                var grupos = IdsDestino(documento.RootElement, "grupos");
+                var gruposAntiguos = IdsDestino(documento.RootElement, "grupos");
                 var unidades = IdsDestino(documento.RootElement, "unidadesOferta");
-                if (roles == null || carreras == null || semestres == null || grupos == null || unidades == null)
+                var gruposOferta = IdsDestino(documento.RootElement, "gruposOferta");
+                var academias = IdsDestino(documento.RootElement, "academias");
+                if (roles == null || carreras == null || semestres == null || gruposAntiguos == null ||
+                    unidades == null || gruposOferta == null || academias == null)
                     return false;
 
-                // Grupos y materias destinatarias se verifican antes de permitir un contenido general:
-                // si hay alguno, el usuario debe pertenecer al menos a uno de ellos.
-                if ((grupos.Count > 0 || unidades.Count > 0) &&
-                    (usuario == null || !(grupos.Any(_gruposValidos.Contains) || unidades.Any(_unidadesValidas.Contains))))
+                // Grupos del modelo antiguo (tabla retirada): nadie puede pertenecer ya a ellos.
+                // Ignorar el campo volveria publica una publicacion restringida, asi que se cierra:
+                // solo la ven el Administrador (arriba) y su autor (en cada controlador).
+                if (gruposAntiguos.Count > 0) return false;
+
+                // Materias, grupos de horario y academias se verifican antes de permitir un contenido
+                // general: si hay alguno, el usuario debe pertenecer al menos a uno de ellos.
+                if ((unidades.Count > 0 || gruposOferta.Count > 0 || academias.Count > 0) &&
+                    (usuario == null || !(unidades.Any(_unidadesValidas.Contains) ||
+                                          gruposOferta.Any(_gruposOfertaValidos.Contains) ||
+                                          academias.Any(_academiasValidas.Contains))))
                     return false;
 
                 // Publicación general disponible sin autenticación.
@@ -162,7 +213,7 @@ namespace PortalNoticiasAPI.Services
                 if (valor.ValueKind != JsonValueKind.Number || !valor.TryGetInt32(out var id) || id <= 0 || ids.Contains(id)) return null;
                 ids.Add(id);
             }
-            return ids.Count <= 30 ? ids : null;
+            return ids.Count <= MaxDestinos ? ids : null;
         }
 
         private static List<string>? Valores(JsonElement root, string nombre)

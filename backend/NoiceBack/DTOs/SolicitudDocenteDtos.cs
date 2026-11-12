@@ -47,6 +47,10 @@ namespace PortalNoticiasAPI.DTOs
         public string Periodo { get; set; } = string.Empty;
         public string Plan { get; set; } = string.Empty;
         public string CodigoGrupo { get; set; } = string.Empty;
+        // Permiten al formulario de audiencia ofrecer el grupo de horario y la academia de la unidad.
+        public int IdGrupoOferta { get; set; }
+        public int? IdAcademia { get; set; }
+        public string? AcademiaNombre { get; set; }
         public string? DocenteNombre { get; set; }
         public int AlumnosSuscritos { get; set; }
     }

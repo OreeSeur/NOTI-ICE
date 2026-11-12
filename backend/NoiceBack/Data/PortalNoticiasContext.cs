@@ -17,10 +17,6 @@ namespace PortalNoticiasAPI.Data
         public DbSet<NoticiaComentario> NoticiasComentarios { get; set; }
         public DbSet<Evento> Eventos { get; set; }
         public DbSet<Academia> Academias { get; set; }
-        public DbSet<Materia> Materias { get; set; }
-        public DbSet<GrupoTipo> GruposTipos { get; set; }
-        public DbSet<Grupo> Grupos { get; set; }
-        public DbSet<GrupoAlumno> GruposAlumnos { get; set; }
         public DbSet<UsuarioPreferencia> UsuariosPreferencias { get; set; }
         public DbSet<NotificacionLeida> NotificacionesLeidas { get; set; }
 
@@ -59,6 +55,11 @@ namespace PortalNoticiasAPI.Data
                 e.Property(x => x.Especialidad).HasColumnName("Especialidad").HasMaxLength(120);
                 e.Property(x => x.Area).HasColumnName("Area").HasMaxLength(120);
                 e.Property(x => x.Activo).HasColumnName("Activo").HasColumnType("bit(1)").HasDefaultValue(true);
+                // Columna agregada por Sql/20261111_fusion_02_academias_en_catalogo_SOLO_PRUEBAS.sql.
+                e.Property(x => x.IdAcademia).HasColumnName("idAcademia");
+                e.HasIndex(x => x.IdAcademia).HasDatabaseName("ix_catalogomateriasplanes_academia");
+                e.HasOne(x => x.Academia).WithMany(a => a.MateriasCatalogo).HasForeignKey(x => x.IdAcademia)
+                    .HasConstraintName("fk_catalogomateriasplanes_academia").OnDelete(DeleteBehavior.Restrict);
                 // ClaveInterna NO es única: hay colisión documentada en plan 2003.
             });
 
@@ -394,86 +395,6 @@ namespace PortalNoticiasAPI.Data
                 e.Property(x => x.Descripcion).HasColumnName("Descripcion");
                 e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
                 e.Property(x => x.Activo).HasColumnName("Activo");
-            });
-
-            // ---------- Materia ----------
-            modelBuilder.Entity<Materia>(e =>
-            {
-                e.ToTable("materias");
-                e.HasKey(x => x.IdMateria);
-                e.Property(x => x.IdMateria).HasColumnName("idMateria");
-                e.Property(x => x.IdAcademia).HasColumnName("idAcademia");
-                e.Property(x => x.MateriaNombre).HasColumnName("MateriaNombre").IsRequired();
-                e.Property(x => x.Descripcion).HasColumnName("Descripcion");
-                e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
-                e.Property(x => x.Activo).HasColumnName("Activo");
-
-                e.HasOne(x => x.Academia)
-                 .WithMany(a => a.Materias)
-                 .HasForeignKey(x => x.IdAcademia);
-            });
-
-            // ---------- GrupoTipo ----------
-            modelBuilder.Entity<GrupoTipo>(e =>
-            {
-                e.ToTable("grupostipos");
-                e.HasKey(x => x.IdGrupoTipo);
-                e.Property(x => x.IdGrupoTipo).HasColumnName("idGrupoTipo");
-                e.Property(x => x.Tipo).HasColumnName("GrupoTipo").IsRequired();
-                e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
-                e.Property(x => x.Activo).HasColumnName("Activo");
-            });
-
-            // ---------- Grupo ----------
-            modelBuilder.Entity<Grupo>(e =>
-            {
-                e.ToTable("grupos");
-                e.HasKey(x => x.IdGrupo);
-                e.Property(x => x.IdGrupo).HasColumnName("idGrupo");
-                e.Property(x => x.IdMateria).HasColumnName("idMateria");
-                e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
-                e.Property(x => x.IdGrupoTipo).HasColumnName("idGrupoTipo");
-                e.Property(x => x.FechaInicio).HasColumnName("FechaInicio");
-                e.Property(x => x.FechaFin).HasColumnName("FechaFin");
-                e.Property(x => x.HoraInicio).HasColumnName("HoraInicio");
-                e.Property(x => x.HoraFin).HasColumnName("HoraFin");
-                e.Property(x => x.Dias).HasColumnName("Dias").IsRequired();
-                e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
-                e.Property(x => x.Activo).HasColumnName("Activo");
-
-                e.HasOne(x => x.Materia)
-                 .WithMany(m => m.Grupos)
-                 .HasForeignKey(x => x.IdMateria);
-
-                e.HasOne(x => x.Profesor)
-                 .WithMany()
-                 .HasForeignKey(x => x.IdUsuario);
-
-                e.HasOne(x => x.GrupoTipoNav)
-                 .WithMany(gt => gt.Grupos)
-                 .HasForeignKey(x => x.IdGrupoTipo);
-            });
-
-            // ---------- GrupoAlumno (puente) ----------
-            modelBuilder.Entity<GrupoAlumno>(e =>
-            {
-                e.ToTable("gruposalumnos");
-                e.HasKey(x => x.IdGrupoAlumno);
-                e.Property(x => x.IdGrupoAlumno).HasColumnName("idGrupoAlumno");
-                e.Property(x => x.IdGrupo).HasColumnName("idGrupo");
-                e.Property(x => x.IdUsuario).HasColumnName("idUsuario");
-                e.Property(x => x.FechaAlta).HasColumnName("FechaAlta");
-                e.Property(x => x.Activo).HasColumnName("Activo");
-
-                e.HasOne(x => x.Grupo)
-                 .WithMany(g => g.GruposAlumnos)
-                 .HasForeignKey(x => x.IdGrupo);
-
-                e.HasOne(x => x.Alumno)
-                 .WithMany()
-                 .HasForeignKey(x => x.IdUsuario);
-
-                e.HasIndex(x => new { x.IdGrupo, x.IdUsuario }).IsUnique();
             });
         }
     }

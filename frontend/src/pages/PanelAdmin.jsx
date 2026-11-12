@@ -1,10 +1,6 @@
 import {
   Bell,
   GraduationCap,
-  BookOpen,
-  Layers,
-  ClipboardList,
-  UsersRound,
   CalendarDays,
   FileText,
   UserPlus,
@@ -218,33 +214,9 @@ export const PanelAdmin = () => {
       : []),
     {
       title: "Academias",
-      description: "Gestionar el catálogo académico",
+      description: "Opciones de optativas y sus materias",
       icon: GraduationCap,
       to: ROUTES.ADMIN_ACADEMIAS,
-    },
-    {
-      title: "Materias",
-      description: "Asignar materias a academias",
-      icon: BookOpen,
-      to: ROUTES.ADMIN_MATERIAS,
-    },
-    {
-      title: "Tipos de grupos",
-      description: "Gestionar modalidades académicas",
-      icon: Layers,
-      to: ROUTES.ADMIN_TIPOS_GRUPOS,
-    },
-    {
-      title: "Grupos académicos",
-      description: "Asignar docentes y definir horarios",
-      icon: UsersRound,
-      to: ROUTES.ADMIN_GRUPOS,
-    },
-    {
-      title: "Suscripciones a grupos",
-      description: "Gestionar alumnos suscritos por grupo",
-      icon: ClipboardList,
-      to: ROUTES.ADMIN_INSCRIPCIONES,
     },
     {
       title: "Nuevo usuario",

@@ -22,6 +22,9 @@ namespace PortalNoticiasAPI.Models
         public string? Especialidad { get; set; }
         public string? Area { get; set; }
         public bool Activo { get; set; } = true;
+        // Academia = opcion de optativas de ICE (Acustica, Computacion, ...). Vacio en obligatorias.
+        public int? IdAcademia { get; set; }
+        public Academia? Academia { get; set; }
 
         public ICollection<OfertaUnidad> UnidadesEnOferta { get; set; } = new List<OfertaUnidad>();
     }

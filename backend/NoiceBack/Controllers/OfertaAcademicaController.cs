@@ -146,6 +146,9 @@ namespace PortalNoticiasAPI.Controllers
                     EsLaboratorio = u.EsLaboratorio,
                     AulaPublicada = u.AulaPublicada,
                     IdMateriaCatalogo = u.IdMateriaCatalogo,
+                    IdAcademia = u.MateriaCatalogo != null ? u.MateriaCatalogo.IdAcademia : null,
+                    AcademiaNombre = u.MateriaCatalogo != null && u.MateriaCatalogo.Academia != null
+                        ? u.MateriaCatalogo.Academia.Nombre : null,
                     Sesiones = u.Sesiones.OrderBy(s => s.DiaSemana)
                         .ThenBy(s => s.HoraInicio)
                         .Select(s => new HorarioSesionConsultaDto

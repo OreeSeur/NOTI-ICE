@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { MisInscripcionesOficiales } from "./MisInscripcionesOficiales";
-import { MisGruposDocentes } from "./MisGruposDocentes";
 import { isMockDataSource } from "../../config/appConfig";
 import {
   ClipboardList,
@@ -682,21 +680,35 @@ export const AcademicProfileSection = ({ user, onSaveAcademicProfile }) => {
   const role = normalizeRole(user?.rol);
 
   if (role === ROLES.ALUMNO) {
-    // Conservar la pantalla anterior solo cuando se use explícitamente el modo mock.
-    // Con la API, las materias del alumno se muestran en «Mis materias y horario»
-    // (MisMateriasOferta, oferta por periodo); los grupos antiguos ya no se ofrecen aquí.
-    return isMockDataSource() ? (
-      <>
-        <MisInscripcionesOficiales />
-        <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />
-      </>
-    ) : null;
+    // Modo mock: demostración local en el navegador. Con la API, las materias del alumno
+    // se muestran en «Mis materias y horario» (MisMateriasOferta, oferta por periodo).
+    return isMockDataSource()
+      ? <AlumnoAcademicProfile user={user} onSave={onSaveAcademicProfile} />
+      : null;
   }
 
   if (role === ROLES.DOCENTE) {
+    // Con la API, las materias del docente y sus alumnos suscritos están en «Mis materias».
     return isMockDataSource()
       ? <DocenteAcademicProfile user={user} />
-      : <MisGruposDocentes />;
+      : (
+        <section className={cardClass}>
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-[#6F1D46]/10 p-3 text-[#6F1D46] dark:bg-pink-300/10 dark:text-pink-200">
+              <GraduationCap size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Mis materias</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Solicita las materias que impartes y consulta los alumnos que las agregaron a su perfil.
+              </p>
+              <Link to={ROUTES.DOCENTE_MATERIAS} className="mt-2 inline-block text-sm font-semibold text-[#6F1D46] hover:underline dark:text-pink-200">
+                Ir a Mis materias
+              </Link>
+            </div>
+          </div>
+        </section>
+      );
   }
 
   if (role === ROLES.ADMIN) {

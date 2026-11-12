@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/auth/useAuth";
 import { ROUTES } from "../../constants/routes";
@@ -44,6 +44,15 @@ export const HorariosAcademicos = () => {
   const [cargandoGrupo, setCargandoGrupo] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState("");
+  const [academiaFiltro, setAcademiaFiltro] = useState("");
+  // Academias (opciones de optativas) presentes en el catálogo del plan elegido.
+  const academiasCatalogo = useMemo(
+    () => [...new Set(materias.map((m) => m.academiaNombre).filter(Boolean))].sort((x, y) => x.localeCompare(y)),
+    [materias]
+  );
+  const materiasVisibles = academiaFiltro
+    ? materias.filter((m) => m.academiaNombre === academiaFiltro)
+    : materias;
 
   useEffect(() => {
     if (!isApiDataSource()) return;
@@ -200,7 +209,7 @@ export const HorariosAcademicos = () => {
                 Plan
                 <select className={campo} value={plan} onChange={(e) => setPlan(e.target.value)}>
                   <option value="2024">2024</option>
-                  <option value="2004">2004</option>
+                  <option value="2003">2003</option>
                 </select>
               </label>
               <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -269,6 +278,7 @@ export const HorariosAcademicos = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold text-slate-800 dark:text-white">{unidad.nombrePublicado}</h3>
                       {unidad.esLaboratorio && <span className="rounded bg-slate-100 px-2 py-1 text-xs dark:bg-slate-700">Laboratorio</span>}
+                      {unidad.academiaNombre && <span className="rounded bg-[#6F1D46]/10 px-2 py-1 text-xs font-semibold text-[#6F1D46] dark:bg-pink-300/10 dark:text-pink-200">Optativa · {unidad.academiaNombre}</span>}
                     </div>
                     {esAlumno && (
                       <button
@@ -335,11 +345,21 @@ export const HorariosAcademicos = () => {
           <section className={card} aria-label="Catálogo de materias">
             <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">Materias del catálogo · plan {plan}</h2>
             <p className="mb-3 text-sm text-slate-500">Las claves oficiales del IPN solo se muestran cuando han sido verificadas.</p>
+            {academiasCatalogo.length > 0 && (
+              <label className="mb-3 block max-w-xs space-y-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Academia (optativas)
+                <select className={campo} value={academiaFiltro} onChange={(e) => setAcademiaFiltro(e.target.value)}>
+                  <option value="">Todas las materias</option>
+                  {academiasCatalogo.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+                </select>
+              </label>
+            )}
             {materias.length === 0 && !cargandoBase && <p className="text-sm text-slate-500">No hay materias cargadas para este plan.</p>}
             <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
-              {materias.map((materia) => (
+              {materiasVisibles.map((materia) => (
                 <li key={materia.idMateriaCatalogo} className="rounded-lg border border-slate-200 p-3 dark:border-slate-600">
                   <strong>{materia.nombre}</strong> · Semestre {materia.semestre}
+                  {materia.academiaNombre && <> · <span className="rounded bg-[#6F1D46]/10 px-2 py-1 text-xs font-semibold text-[#6F1D46] dark:bg-pink-300/10 dark:text-pink-200">Optativa · {materia.academiaNombre}</span></>}
                   {materia.claveOficialVerificada && materia.claveOficialIPN ? ` · Clave IPN: ${materia.claveOficialIPN}` : " · Clave oficial pendiente de verificación"}
                 </li>
               ))}

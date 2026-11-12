@@ -120,9 +120,8 @@ namespace PortalNoticiasAPI.Controllers
                 return BadRequest(new { mensaje = "La fecha de fin no puede ser anterior a la fecha de inicio" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
-                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
-                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarAsync(User, audiencia))
+                return BadRequest(new { mensaje = "Las materias, grupos de horario o academias destinatarios deben estar activos y, para un Docente, corresponder a una materia que tenga aprobada." });
 
             var evento = new Evento
             {
@@ -164,9 +163,8 @@ namespace PortalNoticiasAPI.Controllers
                 return StatusCode(403, new { mensaje = "Solo puedes modificar los eventos que tú publicaste" });
 
             var audiencia = dto.Audiencia ?? new AudienciaDto();
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
-                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
-                return BadRequest(new { mensaje = "Los grupos o materias destinatarios deben estar activos y asignados al autor (o al Administrador)." });
+            if (!await _audiencias.PuedePublicarAsync(User, audiencia))
+                return BadRequest(new { mensaje = "Las materias, grupos de horario o academias destinatarios deben estar activos y, para un Docente, corresponder a una materia que tenga aprobada." });
 
             evento.Titulo = dto.Titulo;
             evento.Descripcion = dto.Descripcion;

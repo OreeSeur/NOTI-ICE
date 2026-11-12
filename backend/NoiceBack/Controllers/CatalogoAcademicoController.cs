@@ -9,7 +9,7 @@ using PortalNoticiasAPI.DTOs;
 
 namespace PortalNoticiasAPI.Controllers
 {
-    // La consulta institucional es independiente del CRUD /api/materias.
+    // Catalogo de materias por plan. La academia (opcion de optativas) viene de la tabla `academias`.
     [ApiController]
     [Authorize(Roles = "Administrador,Docente,Alumno")]
     [Route("api/catalogo-academico")]
@@ -18,12 +18,13 @@ namespace PortalNoticiasAPI.Controllers
         private readonly PortalNoticiasContext _context;
         public CatalogoAcademicoController(PortalNoticiasContext context) => _context = context;
 
-        // GET /api/catalogo-academico/materias?plan=2024&semestre=1&pagina=1&tamanoPagina=50
+        // GET /api/catalogo-academico/materias?plan=2003&semestre=8&idAcademia=1&pagina=1&tamanoPagina=50
         [HttpGet("materias")]
         public async Task<IActionResult> ListarMaterias(
             [FromQuery] string? plan = null,
             [FromQuery] int? semestre = null,
             [FromQuery] string? buscar = null,
+            [FromQuery] int? idAcademia = null,
             [FromQuery] int pagina = 1,
             [FromQuery] int tamanoPagina = 50)
         {
@@ -35,6 +36,8 @@ namespace PortalNoticiasAPI.Controllers
                 return BadRequest(new { mensaje = "Plan inválido." });
             if (buscar is not null && buscar.Trim().Length > 120)
                 return BadRequest(new { mensaje = "La búsqueda admite hasta 120 caracteres." });
+            if (idAcademia.HasValue && idAcademia <= 0)
+                return BadRequest(new { mensaje = "Academia inválida." });
 
             var consulta = _context.CatalogoMateriasPlanes.AsNoTracking().Where(m => m.Activo);
             if (!string.IsNullOrWhiteSpace(plan))
@@ -44,6 +47,8 @@ namespace PortalNoticiasAPI.Controllers
             }
             if (semestre.HasValue)
                 consulta = consulta.Where(m => m.Semestre == semestre.Value);
+            if (idAcademia.HasValue)
+                consulta = consulta.Where(m => m.IdAcademia == idAcademia.Value);
             if (!string.IsNullOrWhiteSpace(buscar))
             {
                 var valor = buscar.Trim();
@@ -66,6 +71,8 @@ namespace PortalNoticiasAPI.Controllers
                     Tipo = m.Tipo,
                     Especialidad = m.Especialidad,
                     Area = m.Area,
+                    IdAcademia = m.IdAcademia,
+                    AcademiaNombre = m.Academia != null ? m.Academia.Nombre : null,
                     ClaveOficialIPN = m.ClaveOficialVerificada ? m.ClaveOficialIPN : null,
                     ClaveOficialVerificada = m.ClaveOficialVerificada,
                     FuenteClaveOficialIPN = m.ClaveOficialVerificada ? m.FuenteClaveOficialIPN : null,

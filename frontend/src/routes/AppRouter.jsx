@@ -33,10 +33,6 @@ import { Login } from "../pages/auth/Login";
 /* Administración */
 import { PanelAdmin } from "../pages/PanelAdmin";
 import { AdminAcademias } from "../pages/admin/academias/AdminAcademias";
-import { AdminMaterias } from "../pages/admin/materias/AdminMaterias";
-import { AdminTiposGrupos } from "../pages/admin/tipos-grupos/AdminTiposGrupos";
-import { AdminGrupos } from "../pages/admin/grupos/AdminGrupos";
-import { AdminInscripciones } from "../pages/admin/inscripciones/AdminInscripciones";
 import { AdminSolicitudesDocentes } from "../pages/admin/solicitudes/AdminSolicitudesDocentes";
 
 import { AdminNoticias } from "../pages/admin/noticias/AdminNoticias";
@@ -301,41 +297,13 @@ return ( <Routes>
     }
   />
 
-{/* Gestión de grupos e inscripciones oficiales (solo administrador) */}
-<Route
-  path={ROUTES.ADMIN_GRUPOS}
-  element={<AdminRoute><Layout><AdminGrupos /></Layout></AdminRoute>}
-/>
-<Route
-  path={ROUTES.ADMIN_INSCRIPCIONES}
-  element={<AdminRoute><Layout><AdminInscripciones /></Layout></AdminRoute>}
-/>
+{/* Solicitudes de docentes (solo administrador) */}
 <Route
   path={ROUTES.ADMIN_SOLICITUDES_DOCENTES}
   element={<AdminRoute><Layout><AdminSolicitudesDocentes /></Layout></AdminRoute>}
 />
 
 {/* Administración */}
-<Route
-  path={ROUTES.ADMIN_MATERIAS}
-  element={
-    <AdminRoute>
-      <Layout>
-        <AdminMaterias />
-      </Layout>
-    </AdminRoute>
-  }
-/>
-<Route
-  path={ROUTES.ADMIN_TIPOS_GRUPOS}
-  element={
-    <AdminRoute>
-      <Layout>
-        <AdminTiposGrupos />
-      </Layout>
-    </AdminRoute>
-  }
-/>
 <Route
   path={ROUTES.ADMIN_ACADEMIAS}
   element={

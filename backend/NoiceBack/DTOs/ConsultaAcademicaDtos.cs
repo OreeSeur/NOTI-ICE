@@ -15,6 +15,9 @@ namespace PortalNoticiasAPI.DTOs
         public string? Tipo { get; set; }
         public string? Especialidad { get; set; }
         public string? Area { get; set; }
+        // Academia = opcion de optativas (solo en optativas; vacio en obligatorias).
+        public int? IdAcademia { get; set; }
+        public string? AcademiaNombre { get; set; }
         public string? ClaveOficialIPN { get; set; }
         public bool ClaveOficialVerificada { get; set; }
         public string? FuenteClaveOficialIPN { get; set; }
@@ -67,6 +70,9 @@ namespace PortalNoticiasAPI.DTOs
         public bool EsLaboratorio { get; set; }
         public string? AulaPublicada { get; set; }
         public int? IdMateriaCatalogo { get; set; } // Relación interna, nunca clave oficial.
+        // Academia (opcion de optativas) de la materia del catalogo; vacio en obligatorias.
+        public int? IdAcademia { get; set; }
+        public string? AcademiaNombre { get; set; }
         public List<HorarioSesionConsultaDto> Sesiones { get; set; } = new();
         public List<DocentePublicadoConsultaDto> Docentes { get; set; } = new();
     }
@@ -86,5 +92,27 @@ namespace PortalNoticiasAPI.DTOs
         public string NombrePublicado { get; set; } = string.Empty;
         public bool EsLaboratorio { get; set; }
         public string? AulaPublicada { get; set; }
+    }
+
+    // Alumno que agrego una unidad a su perfil. Sin correo, boleta ni datos de acceso.
+    public sealed class AlumnoSuscritoDto
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string? Carrera { get; set; }
+        public int? Semestre { get; set; }
+        public DateTime FechaSuscripcion { get; set; }
+    }
+
+    public sealed class SuscritosUnidadDto
+    {
+        public int IdUnidadOferta { get; set; }
+        public string NombrePublicado { get; set; } = string.Empty;
+        public bool EsLaboratorio { get; set; }
+        public string Periodo { get; set; } = string.Empty;
+        public string Plan { get; set; } = string.Empty;
+        public string CodigoGrupo { get; set; } = string.Empty;
+        public int Total { get; set; }
+        public string Aviso { get; set; } = string.Empty;
+        public List<AlumnoSuscritoDto> Alumnos { get; set; } = new();
     }
 }

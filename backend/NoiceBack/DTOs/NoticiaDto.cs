@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PortalNoticiasAPI.DTOs
 {
@@ -11,11 +12,21 @@ namespace PortalNoticiasAPI.DTOs
         public List<string> Carreras { get; set; } = new() { "todos" };
         public List<string> Semestres { get; set; } = new() { "todos" };
         public List<string> Categorias { get; set; } = new() { "todos" };
-        // Si no se seleccionan grupos, se conserva el comportamiento general anterior.
-        public List<int> Grupos { get; set; } = new();
+        // Grupos de los horarios (ofertagrupos). Los ven los alumnos con alguna materia de ese grupo
+        // en su perfil y el Docente aprobado en alguna unidad del grupo.
+        public List<int> GruposOferta { get; set; } = new();
+        // Academias = opciones de optativas. Las ven los alumnos con una optativa de esa academia
+        // en su perfil y el Docente aprobado en una unidad de esa academia.
+        public List<int> Academias { get; set; } = new();
         // Materias/laboratorios de los horarios (ofertaunidades). Solo el Docente aprobado para
         // cada una (o un Administrador) puede elegirlas; las ven sus alumnos suscritos.
         public List<int> UnidadesOferta { get; set; } = new();
+        // Campo del modelo antiguo (tabla `grupos`, retirada). Ya no se acepta al publicar; en
+        // publicaciones antiguas cierra el acceso (ver AudienciaAccesoService.PuedeVer). Se conserva
+        // solo para detectarlo y no se vuelve a guardar.
+        [JsonPropertyName("grupos")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<int>? GruposAntiguos { get; set; }
         public string Prioridad { get; set; } = "normal";
     }
 

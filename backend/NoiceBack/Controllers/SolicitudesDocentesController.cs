@@ -269,6 +269,10 @@ namespace PortalNoticiasAPI.Controllers
                     Periodo = s.Unidad.Grupo.Periodo.Clave,
                     Plan = s.Unidad.Grupo.Plan,
                     CodigoGrupo = s.Unidad.Grupo.CodigoGrupo,
+                    IdGrupoOferta = s.Unidad.IdGrupoOferta,
+                    IdAcademia = s.Unidad.MateriaCatalogo != null ? s.Unidad.MateriaCatalogo.IdAcademia : null,
+                    AcademiaNombre = s.Unidad.MateriaCatalogo != null && s.Unidad.MateriaCatalogo.Academia != null
+                        ? s.Unidad.MateriaCatalogo.Academia.Nombre : null,
                     DocenteNombre = esAdmin ? s.Docente.Nombre : null,
                     AlumnosSuscritos = _context.OfertaInscripcionesAlumnos
                         .Count(i => i.IdUnidadOferta == s.IdUnidadOferta && i.Activo)

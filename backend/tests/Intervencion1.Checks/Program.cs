@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -925,18 +926,19 @@ await Caso("Solicitudes: el Docente solo publica para sus materias aprobadas; al
     var fisica = await UnidadId(db, "FISICA CLASICA");
     var docente = H.Principal(BaseDePrueba.IdDocente, "Docente");
     var acceso = new AudienciaAccesoService(db);
-    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "publica sin aprobación");
+    AudienciaDto A(params int[] ids) => new() { UnidadesOferta = ids.ToList() };
+    H.Afirmar(!await acceso.PuedePublicarAsync(docente, A(calculo)), "publica sin aprobación");
 
     var s = await Solicitar(db, BaseDePrueba.IdDocente, calculo);
     await Fabrica.Solicitudes(db, adminP).Aprobar(s);
-    H.Afirmar(await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "no publica con aprobación");
-    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo, fisica }), "publica en materia ajena");
-    H.Afirmar(await acceso.PuedePublicarParaUnidadesAsync(adminP, new() { calculo, fisica }), "el Administrador no puede");
-    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(H.Principal(BaseDePrueba.IdAlumno, "Alumno"), new() { calculo }),
+    H.Afirmar(await acceso.PuedePublicarAsync(docente, A(calculo)), "no publica con aprobación");
+    H.Afirmar(!await acceso.PuedePublicarAsync(docente, A(calculo, fisica)), "publica en materia ajena");
+    H.Afirmar(await acceso.PuedePublicarAsync(adminP, A(calculo, fisica)), "el Administrador no puede");
+    H.Afirmar(!await acceso.PuedePublicarAsync(H.Principal(BaseDePrueba.IdAlumno, "Alumno"), A(calculo)),
         "un Alumno puede destinar a materias");
 
     await Fabrica.Solicitudes(db, adminP).Revocar(s, new ResolverSolicitudDocenteDto { Motivo = "Cambio de docente." });
-    H.Afirmar(!await acceso.PuedePublicarParaUnidadesAsync(docente, new() { calculo }), "sigue publicando tras revocar");
+    H.Afirmar(!await acceso.PuedePublicarAsync(docente, A(calculo)), "sigue publicando tras revocar");
 });
 
 await Caso("Solicitudes: una publicación para una materia solo la ven sus alumnos, su docente y administración", async () =>
@@ -1158,6 +1160,206 @@ await Caso("Mis materias: quitar todas da de baja solo las del alumno autenticad
     await using var ctx = b.NuevoContexto();
     H.Afirmar(await ctx.OfertaInscripcionesAlumnos.AnyAsync(i => i.IdUsuario == BaseDePrueba.IdAlumno && !i.Activo && i.FechaBaja != null),
         "no registró la fecha de baja");
+});
+
+// ------------------------------------------- Fusion de modelos: grupos de horario, academias y suscritos
+// Academia "Electronica" con la materia de FISICA CLASICA (1CV12). OtroAlumno la tiene en su perfil;
+// el Alumno principal solo tiene CALCULO (1CV11). Devuelve (idAcademia, idAcademiaInactiva).
+async Task<(int Academia, int Inactiva)> PrepararAcademia(BaseDePrueba b)
+{
+    await using var ctx = b.NuevoContexto();
+    var electronica = new Academia { Nombre = "Electrónica", FechaAlta = DateTime.Now, Activo = true };
+    var retirada = new Academia { Nombre = "Retirada", FechaAlta = DateTime.Now, Activo = false };
+    ctx.Academias.AddRange(electronica, retirada);
+    await ctx.SaveChangesAsync();
+    var materia = await ctx.CatalogoMateriasPlanes.SingleAsync(m => m.IdOrigen == "C2");
+    materia.IdAcademia = electronica.IdAcademia;
+    var fisica = await ctx.OfertaUnidades.SingleAsync(u => u.NombrePublicado == "FISICA CLASICA");
+    fisica.IdMateriaCatalogo = materia.IdMateriaCatalogo;
+    await ctx.SaveChangesAsync();
+    return (electronica.IdAcademia, retirada.IdAcademia);
+}
+
+async Task<bool> VeAudiencia(BaseDePrueba b, string audiencia, int? id)
+{
+    await using var ctx = b.NuevoContexto();
+    var acceso = new AudienciaAccesoService(ctx);
+    var u = id.HasValue ? await acceso.UsuarioActualAsync(H.Principal(id, "x")) : null;
+    return acceso.PuedeVer(audiencia, u);
+}
+
+const string Generales = "\"roles\":[\"todos\"],\"carreras\":[\"todos\"],\"semestres\":[\"todos\"]";
+
+await Caso("Audiencia: grupos de horario y academias, quién puede elegirlos al publicar", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var (academia, inactiva) = await PrepararAcademia(b);
+    var g11 = await GrupoId(db, "1CV11");
+    var g12 = await GrupoId(db, "1CV12");
+    var historico = await GrupoId(db, "1CV11", activo: false);
+    var otroDocente = H.Principal(OfertaDePrueba.IdOtroDocente, "Docente");
+    var docente = H.Principal(BaseDePrueba.IdDocente, "Docente");
+    AudienciaDto G(params int[] ids) => new() { GruposOferta = ids.ToList() };
+    AudienciaDto Ac(params int[] ids) => new() { Academias = ids.ToList() };
+
+    var acceso = new AudienciaAccesoService(db);
+    H.Afirmar(!await acceso.PuedePublicarAsync(otroDocente, G(g12)), "grupo sin aprobación");
+    H.Afirmar(!await acceso.PuedePublicarAsync(otroDocente, Ac(academia)), "academia sin aprobación");
+
+    var s = await Solicitar(db, OfertaDePrueba.IdOtroDocente, await UnidadId(db, "FISICA CLASICA"));
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+    H.Afirmar(await acceso.PuedePublicarAsync(otroDocente, G(g12)), "el docente aprobado no elige su grupo");
+    H.Afirmar(!await acceso.PuedePublicarAsync(otroDocente, G(g11)), "el docente elige un grupo ajeno");
+    H.Afirmar(!await acceso.PuedePublicarAsync(otroDocente, G(g11, g12)), "el docente mezcla grupo ajeno");
+    H.Afirmar(await acceso.PuedePublicarAsync(otroDocente, Ac(academia)), "el docente aprobado no elige su academia");
+    H.Afirmar(!await acceso.PuedePublicarAsync(docente, Ac(academia)), "otro docente elige la academia");
+    H.Afirmar(!await acceso.PuedePublicarAsync(docente, G(g12)), "otro docente elige el grupo");
+
+    H.Afirmar(await acceso.PuedePublicarAsync(adminP, G(g11, g12)), "el Administrador no elige grupos activos");
+    H.Afirmar(await acceso.PuedePublicarAsync(adminP, Ac(academia)), "el Administrador no elige la academia");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, G(historico)), "grupo de periodo inactivo aceptado");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, Ac(inactiva)), "academia inactiva aceptada");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, Ac(9999)), "academia inexistente aceptada");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, G(g11, g11)), "grupos repetidos aceptados");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, G(Enumerable.Range(1, 31).ToArray())), "más de 30 grupos aceptados");
+    H.Afirmar(!await acceso.PuedePublicarAsync(adminP, new AudienciaDto { GruposOferta = null! }), "lista nula aceptada");
+    H.Afirmar(!await acceso.PuedePublicarAsync(H.Principal(BaseDePrueba.IdAlumno, "Alumno"), G(g11)), "un Alumno destina a grupos");
+
+    // Destinos del docente: incluyen grupo y academia para el formulario de audiencia.
+    var mios = (List<UnidadDestinoDto>)H.Valor(await Fabrica.Solicitudes(db, otroDocente).Destinos())!;
+    H.Afirmar(mios.Count == 1 && mios[0].IdGrupoOferta == g12 && mios[0].IdAcademia == academia &&
+              mios[0].AcademiaNombre == "Electrónica", "destinos sin grupo o academia");
+});
+
+await Caso("Audiencia: una publicación por grupo o academia solo la ven sus alumnos, su docente y administración", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var (academia, _) = await PrepararAcademia(b);
+    var g12 = await GrupoId(db, "1CV12");
+    var s = await Solicitar(db, OfertaDePrueba.IdOtroDocente, await UnidadId(db, "FISICA CLASICA"));
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+
+    foreach (var audiencia in new[] { $"{{{Generales},\"gruposOferta\":[{g12}]}}", $"{{{Generales},\"academias\":[{academia}]}}" })
+    {
+        H.Afirmar(await VeAudiencia(b, audiencia, OfertaDePrueba.IdOtroAlumno), "el alumno suscrito no la ve: " + audiencia);
+        H.Afirmar(!await VeAudiencia(b, audiencia, BaseDePrueba.IdAlumno), "un alumno no suscrito la ve: " + audiencia);
+        H.Afirmar(await VeAudiencia(b, audiencia, OfertaDePrueba.IdOtroDocente), "el docente aprobado no la ve: " + audiencia);
+        H.Afirmar(!await VeAudiencia(b, audiencia, BaseDePrueba.IdDocente), "otro docente la ve: " + audiencia);
+        H.Afirmar(await VeAudiencia(b, audiencia, BaseDePrueba.IdAdminA), "la administración no la ve: " + audiencia);
+        H.Afirmar(!await VeAudiencia(b, audiencia, null), "un visitante la ve: " + audiencia);
+    }
+    H.Afirmar(!await VeAudiencia(b, $"{{{Generales},\"academias\":[\"x\"]}}", null), "academias inválido se trató como general");
+    H.Afirmar(!await VeAudiencia(b, $"{{{Generales},\"gruposOferta\":{{}}}}", BaseDePrueba.IdAlumno), "gruposOferta inválido aceptado");
+
+    // Al revocar, el docente deja de verla (ya no pertenece al grupo ni a la academia).
+    await Fabrica.Solicitudes(db, adminP).Revocar(s, new ResolverSolicitudDocenteDto { Motivo = "Cambio de docente." });
+    H.Afirmar(!await VeAudiencia(b, $"{{{Generales},\"academias\":[{academia}]}}", OfertaDePrueba.IdOtroDocente),
+        "el docente revocado la sigue viendo");
+});
+
+await Caso("Audiencia: el campo antiguo `grupos` cierra el acceso y ya no se acepta al publicar", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var antigua = $"{{{Generales},\"grupos\":[1]}}";
+    H.Afirmar(!await VeAudiencia(b, antigua, BaseDePrueba.IdAlumno), "un alumno ve una publicación del modelo antiguo");
+    H.Afirmar(!await VeAudiencia(b, antigua, BaseDePrueba.IdDocente), "un docente ve una publicación del modelo antiguo");
+    H.Afirmar(!await VeAudiencia(b, antigua, null), "un visitante ve una publicación del modelo antiguo");
+    H.Afirmar(await VeAudiencia(b, antigua, BaseDePrueba.IdAdminA), "la administración no la ve");
+    H.Afirmar(await VeAudiencia(b, $"{{{Generales},\"grupos\":[]}}", null), "grupos vacío dejó de ser general");
+
+    // Noticia antigua de un Docente: su autor la sigue viendo; un alumno no.
+    int id;
+    await using (var ctx = b.NuevoContexto())
+    {
+        var n = new Noticia { Titulo = "Antigua", Contenido = "x", IdUsuario = BaseDePrueba.IdDocente, FechaPublicacion = DateTime.Today,
+            FechaAlta = DateTime.Now, Activo = true, Prioridad = "normal", AudienciaJson = antigua };
+        ctx.Noticias.Add(n);
+        await ctx.SaveChangesAsync();
+        id = n.IdNoticia;
+    }
+    await using (var ctx = b.NuevoContexto())
+        H.Afirmar(H.Estado(await Fabrica.Noticias(ctx, H.Principal(BaseDePrueba.IdDocente, "Docente")).GetNoticia(id)) == 200,
+            "el autor no ve su noticia antigua");
+    await using (var ctx = b.NuevoContexto())
+        H.Afirmar(H.Estado(await Fabrica.Noticias(ctx, H.Principal(BaseDePrueba.IdAlumno, "Alumno")).GetNoticia(id)) == 404,
+            "un alumno ve la noticia antigua");
+
+    // Publicar con el campo antiguo se rechaza, aunque lo envíe el Administrador.
+    var dto = JsonSerializer.Deserialize<NoticiaCreateDto>(
+        $"{{\"titulo\":\"Con grupos\",\"contenido\":\"x\",\"fechaPublicacion\":\"2026-11-11\",\"audiencia\":{antigua}}}",
+        new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+    H.Afirmar(dto.Audiencia!.GruposAntiguos is [1], "no se leyó el campo antiguo");
+    var r = await Fabrica.Noticias(db, adminP).CrearNoticia(dto);
+    H.Afirmar(H.Estado(r) == 400, $"publicar con grupos antiguos: {H.Estado(r)}");
+
+    // Una audiencia sin el campo antiguo no lo vuelve a escribir.
+    var nueva = await CrearNoticiaComo(db, BaseDePrueba.IdAdminA, "Administrador", NuevaNoticia("Sin grupos"));
+    await using (var ctx = b.NuevoContexto())
+    {
+        var json = (await ctx.Noticias.SingleAsync(n => n.IdNoticia == nueva)).AudienciaJson ?? "";
+        H.Afirmar(!json.Contains("\"grupos\"", StringComparison.Ordinal) && json.Contains("gruposOferta", StringComparison.Ordinal),
+            "JSON guardado: " + json);
+    }
+});
+
+await Caso("Suscritos: el Docente aprobado y el Administrador ven el listado; otro Docente no", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var fisica = await UnidadId(db, "FISICA CLASICA");
+    var s = await Solicitar(db, OfertaDePrueba.IdOtroDocente, fisica);
+    await Fabrica.Solicitudes(db, adminP).Aprobar(s);
+
+    async Task<IActionResult> Pedir(int id, string rol, int unidad)
+    {
+        await using var ctx = b.NuevoContexto();
+        return await H.ConUsuario(new SuscritosUnidadController(ctx), H.Principal(id, rol)).Listar(unidad);
+    }
+
+    var propio = await Pedir(OfertaDePrueba.IdOtroDocente, "Docente", fisica);
+    H.Afirmar(H.Estado(propio) == 200, $"docente aprobado: {H.Estado(propio)}");
+    var lista = (SuscritosUnidadDto)H.Valor(propio)!;
+    H.Afirmar(lista.Total == 1 && lista.Alumnos.Count == 1 && lista.Alumnos[0].Nombre == "Otro alumno" &&
+              lista.Aviso.Contains("no es una inscripción oficial", StringComparison.Ordinal), "listado incorrecto");
+
+    var admin = await Pedir(BaseDePrueba.IdAdminA, "Administrador", fisica);
+    H.Afirmar(H.Estado(admin) == 200 && ((SuscritosUnidadDto)H.Valor(admin)!).Total == 1, $"administrador: {H.Estado(admin)}");
+    var ajeno = await Pedir(BaseDePrueba.IdDocente, "Docente", fisica);
+    H.Afirmar(H.Estado(ajeno) == 404, $"docente ajeno: {H.Estado(ajeno)}");
+    var inexistente = await Pedir(BaseDePrueba.IdAdminA, "Administrador", 99999);
+    H.Afirmar(H.Estado(inexistente) == 404, $"unidad inexistente: {H.Estado(inexistente)}");
+    var historica = await Pedir(BaseDePrueba.IdAdminA, "Administrador", await UnidadId(db, "HISTORICA 2026-2"));
+    H.Afirmar(H.Estado(historica) == 404, $"periodo inactivo: {H.Estado(historica)}");
+    // JWT de Docente, pero la cuenta es Alumno en la BD.
+    var suplantado = await Pedir(BaseDePrueba.IdAlumno, "Docente", fisica);
+    H.Afirmar(suplantado is ForbidResult, "una cuenta Alumno con JWT de Docente vio el listado");
+
+    await Fabrica.Solicitudes(db, adminP).Revocar(s, new ResolverSolicitudDocenteDto { Motivo = "Cambio de docente." });
+    H.Afirmar(H.Estado(await Pedir(OfertaDePrueba.IdOtroDocente, "Docente", fisica)) == 404, "el docente revocado ve el listado");
+
+    var roles = typeof(SuscritosUnidadController).GetCustomAttribute<AuthorizeAttribute>()?.Roles;
+    H.Afirmar(roles == "Administrador,Docente", "roles: " + roles);
+    var campos = typeof(AlumnoSuscritoDto).GetProperties().Select(p => p.Name).ToArray();
+    H.Afirmar(!campos.Any(c => c.Contains("Correo") || c.Contains("Identificacion") || c.Contains("Contrasena") || c.Contains("IdUsuario")),
+        "el listado expone datos sensibles: " + string.Join(",", campos));
+});
+
+await Caso("Catálogo: expone la academia y filtra por ella; no se desactiva una academia con materias", async () =>
+{
+    var (b, db) = await BaseAcademica();
+    await using var _b = b; await using var _db = db;
+    var (academia, _) = await PrepararAcademia(b);
+    var r = await H.ConUsuario(new CatalogoAcademicoController(db), adminP).ListarMaterias(idAcademia: academia);
+    H.Afirmar(H.Estado(r) == 200 && H.Campo(H.Valor(r), "total") == "1", $"filtro por academia: total={H.Campo(H.Valor(r), "total")}");
+    var resultados = (List<CatalogoMateriaConsultaDto>)H.Valor(r)!.GetType().GetProperty("resultados")!.GetValue(H.Valor(r))!;
+    H.Afirmar(resultados[0].AcademiaNombre == "Electrónica" && resultados[0].IdAcademia == academia, "sin nombre de academia");
+
+    await using var ctx = b.NuevoContexto();
+    var baja = await H.ConUsuario(new AcademiasController(ctx), adminP).EliminarAcademia(academia);
+    H.Afirmar(H.Estado(baja) == 409, $"desactivar academia con materias: {H.Estado(baja)}");
 });
 
 Console.WriteLine();

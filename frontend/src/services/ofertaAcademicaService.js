@@ -52,3 +52,8 @@ export const agregarGrupoOferta = (idGrupoOferta) =>
   post("/oferta-academica/mis-materias/grupo", { idGrupoOferta });
 // Da de baja todas las materias seleccionadas por el alumno.
 export const quitarTodasMisMateriasOferta = () => remove("/oferta-academica/mis-materias");
+
+// Alumnos que agregaron una unidad a su perfil (Administrador: cualquiera; Docente: solo sus
+// unidades aprobadas). Solo nombre, carrera, semestre y fecha. No es una inscripción oficial.
+export const obtenerSuscritosUnidad = (idUnidadOferta) =>
+  get(`/oferta-academica/unidades/${encodeURIComponent(idUnidadOferta)}/suscritos`);

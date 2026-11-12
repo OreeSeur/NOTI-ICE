@@ -241,9 +241,8 @@ namespace PortalNoticiasAPI.Controllers
 
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
-                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
-                return BadRequest(new { mensaje = "No puedes destinar documentos a esos grupos o materias." });
+            if (!await _audiencias.PuedePublicarAsync(User, audiencia))
+                return BadRequest(new { mensaje = "Las materias, grupos de horario o academias destinatarios deben estar activos y, para un Docente, corresponder a una materia que tenga aprobada." });
 
             if (!TryValidarUrl(dto.Url, out var enlaceValidado))
                 return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });
@@ -315,9 +314,8 @@ namespace PortalNoticiasAPI.Controllers
 
             if (!TryLeerAudiencia(dto.AudienciaJson, out var audiencia))
                 return BadRequest(new { mensaje = "La audiencia debe incluir roles, carreras y semestres validos." });
-            if (!await _audiencias.PuedePublicarParaGruposAsync(User, audiencia.Grupos) ||
-                !await _audiencias.PuedePublicarParaUnidadesAsync(User, audiencia.UnidadesOferta))
-                return BadRequest(new { mensaje = "No puedes destinar documentos a esos grupos o materias." });
+            if (!await _audiencias.PuedePublicarAsync(User, audiencia))
+                return BadRequest(new { mensaje = "Las materias, grupos de horario o academias destinatarios deben estar activos y, para un Docente, corresponder a una materia que tenga aprobada." });
 
             if (!TryValidarUrl(dto.Url, out var enlaceValidado))
                 return BadRequest(new { mensaje = "El enlace debe ser una URL absoluta http:// o https://, sin credenciales." });

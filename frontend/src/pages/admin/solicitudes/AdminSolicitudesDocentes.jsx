@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { isApiDataSource } from "../../../config/appConfig";
+import { SuscritosUnidad } from "../../../components/common/SuscritosUnidad";
 import {
   ESTADOS_SOLICITUD,
   ESTILO_ESTADO,
@@ -188,6 +189,7 @@ export const AdminSolicitudesDocentes = () => {
                   </button>
                 </div>
               )}
+              {s.estado === ESTADOS_SOLICITUD.APROBADA && <SuscritosUnidad idUnidadOferta={s.idUnidadOferta} />}
               {s.estado === ESTADOS_SOLICITUD.APROBADA && formulario?.id !== s.idSolicitud && (
                 <button
                   type="button"

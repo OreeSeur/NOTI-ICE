@@ -11,6 +11,7 @@ namespace PortalNoticiasAPI.Models
         public DateTime FechaAlta { get; set; }
         public bool Activo { get; set; }
 
-        public ICollection<Materia>? Materias { get; set; }
+        // Materias del catalogo por plan (teoria y laboratorio) que pertenecen a esta opcion de optativas.
+        public ICollection<CatalogoMateriaPlan> MateriasCatalogo { get; set; } = new List<CatalogoMateriaPlan>();
     }
 }

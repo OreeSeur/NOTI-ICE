@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
+import { SuscritosUnidad } from "../../components/common/SuscritosUnidad";
 import { ROUTES } from "../../constants/routes";
 import { isApiDataSource } from "../../config/appConfig";
 import {
@@ -149,8 +150,8 @@ export const DocenteMaterias = () => {
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Mis materias como docente</h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Solicita las materias y laboratorios que impartes. Un Administrador revisará cada solicitud;
-          cuando la apruebe podrás elegir esa materia como destinataria al publicar eventos y documentos,
-          y los verán los alumnos que la agregaron a su perfil.
+          cuando la apruebe podrás elegir esa materia, su grupo y, si es optativa, su academia como destinatarios
+          al publicar noticias, eventos y documentos, y consultar los alumnos que la agregaron a su perfil.
         </p>
         <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
           La aprobación es un permiso dentro del portal: no es una asignación oficial del IPN ni cambia el horario publicado.
@@ -198,6 +199,7 @@ export const DocenteMaterias = () => {
                   Motivo{s.administradorNombre ? ` (${s.administradorNombre})` : ""}: {s.motivo}
                 </p>
               )}
+              {s.estado === ESTADOS_SOLICITUD.APROBADA && <SuscritosUnidad idUnidadOferta={s.idUnidadOferta} />}
               {vigente(s) && (
                 <button
                   type="button"
@@ -228,7 +230,7 @@ export const DocenteMaterias = () => {
             Plan
             <select className={campo} value={plan} onChange={(e) => { setPlan(e.target.value); setCodigoGrupo(""); }}>
               <option value="2024">2024</option>
-              <option value="2004">2004</option>
+              <option value="2003">2003</option>
             </select>
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">

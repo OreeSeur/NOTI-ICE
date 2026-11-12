@@ -35,17 +35,24 @@ const idsPositivos = (valores) =>
     ? [...new Set(valores.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))]
     : [];
 
-export const normalizeAudience = (audiencia = {}) => ({
-  ...DEFAULT_AUDIENCE,
-  ...audiencia,
-  roles: unique(ensureArray(audiencia.roles)),
-  carreras: unique(ensureArray(audiencia.carreras)),
-  semestres: unique(ensureArray(audiencia.semestres)),
-  categorias: unique(ensureArray(audiencia.categorias)),
-  grupos: idsPositivos(audiencia.grupos),
-  unidadesOferta: idsPositivos(audiencia.unidadesOferta),
-  prioridad: audiencia.prioridad || DEFAULT_AUDIENCE.prioridad,
-});
+// `grupos` es el campo del modelo antiguo (tabla retirada). No se reenvía a la API, que lo rechaza;
+// `teniaGruposAntiguos` solo sirve para avisar en el formulario (la API ignora ese campo).
+export const normalizeAudience = (audiencia = {}) => {
+  const { grupos, teniaGruposAntiguos, ...resto } = audiencia || {};
+  return {
+    ...DEFAULT_AUDIENCE,
+    ...resto,
+    roles: unique(ensureArray(resto.roles)),
+    carreras: unique(ensureArray(resto.carreras)),
+    semestres: unique(ensureArray(resto.semestres)),
+    categorias: unique(ensureArray(resto.categorias)),
+    gruposOferta: idsPositivos(resto.gruposOferta),
+    academias: idsPositivos(resto.academias),
+    unidadesOferta: idsPositivos(resto.unidadesOferta),
+    prioridad: resto.prioridad || DEFAULT_AUDIENCE.prioridad,
+    teniaGruposAntiguos: Boolean(teniaGruposAntiguos) || idsPositivos(grupos).length > 0,
+  };
+};
 
 export const getItemAudience = (item = {}) => {
   if (item.audiencia) return normalizeAudience(item.audiencia);

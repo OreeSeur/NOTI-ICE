@@ -51,20 +51,4 @@ namespace PortalNoticiasAPI.DTOs
             ErrorMessage = "La descripción no puede superar los 255 caracteres.")]
         public string? Descripcion { get; set; }
     }
-
-    // ---------- GrupoTipo ----------
-    public class GrupoTipoDto
-    {
-        public int IdGrupoTipo { get; set; }
-        public string Tipo { get; set; } = string.Empty;
-        public bool Activo { get; set; }
-    }
-
-    public class GrupoTipoCreateUpdateDto
-    {
-        [Required(ErrorMessage = "El tipo de grupo es obligatorio.")]
-        [StringLength(100,
-            ErrorMessage = "El tipo de grupo no puede superar los 100 caracteres.")]
-        public string Tipo { get; set; } = string.Empty;
-    }
 }
